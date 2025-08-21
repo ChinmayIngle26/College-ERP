@@ -28,7 +28,7 @@ function AttendanceTableLoader() {
                 setLoading(true);
                 setError(null);
                 try {
-                    const idToken = await clientAuth.currentUser!.getIdToken();
+                    const idToken = await clientAuth.currentUser!.getIdToken(true); // Force refresh token
                     const fetchedRecords = await getAttendanceRecords(idToken); 
                     setRecords(fetchedRecords);
                 } catch (err) {
