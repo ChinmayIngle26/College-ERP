@@ -73,8 +73,13 @@ export default function DashboardPage() {
            }
 
           const idToken = await clientAuth.currentUser!.getIdToken(true); // Force refresh token
-          const attendancePromise = getAttendanceRecords(idToken); // Use Server Action
-          const gradesPromise = getGrades(profileData?.studentId || user.uid); // Assuming studentId is the correct key for grades
+          const attendancePromise = getAttendanceRecords(idToken);
+          
+          // Conditionally fetch grades only if studentId exists and is not the same as the UID fallback
+          const gradesPromise = (profileData?.studentId && profileData.studentId !== user.uid)
+                ? getGrades(profileData.studentId)
+                : Promise.resolve([]);
+
           const announcementsPromise = getAnnouncements();
 
           const [attendanceRecords, grades, announcements] = await Promise.all([
