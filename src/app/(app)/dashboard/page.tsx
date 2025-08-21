@@ -72,7 +72,7 @@ export default function DashboardPage() {
                profileData = { name: user.displayName || 'Student', studentId: user.uid, courseProgram: 'Unknown', email: user.email || "N/A" } as StudentProfile;
            }
 
-          const idToken = await clientAuth.currentUser!.getIdToken();
+          const idToken = await clientAuth.currentUser!.getIdToken(true); // Force refresh token
           const attendancePromise = getAttendanceRecords(idToken); // Use Server Action
           const gradesPromise = getGrades(profileData?.studentId || user.uid); // Assuming studentId is the correct key for grades
           const announcementsPromise = getAnnouncements();
