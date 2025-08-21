@@ -1,0 +1,89 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Helper function to check if the user is a faculty member
+    function isFaculty() {
+      return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'faculty';
+    }
+
+    // Matches any document in the 'users' collection
+    match /users/{userId} {
+      // Allow users to read their own profile
+      allow read: if request.auth != null && request.auth.uid == userId;
+      // Allow authenticated users to create their own user document (e.g., on signup)
+      allow create: if request.auth != null && request.auth.uid == userId;
+      // Allow users to update their own profile
+      allow update: if request.auth != null && request.auth.uid == userId;
+      // Admin access
+      allow read, write: if isAdmin();
+    }
+
+    // System Settings
+    match /systemSettings/appConfiguration {
+      allow read: if true; // Publicly readable for app name, maintenance mode, etc.
+      allow write: if isAdmin(); // Only admins can change system settings
+    }
+
+    // Classrooms collection
+    // Diagnostic rule: allow list/get if user is authenticated
+    match /classrooms/{classroomId} {
+      allow list, get: if request.auth != null;
+      allow create: if request.auth != null && isFaculty() && request.resource.data.ownerFacultyId == request.auth.uid;
+      // For update, only owner can update (e.g., invite other faculty)
+      allow update: if request.auth != null && isFaculty() && resource.data.ownerFacultyId == request.auth.uid;
+      allow delete: if request.auth != null && isFaculty() && resource.data.ownerFacultyId == request.auth.uid;
+    }
+     match /classrooms/{document=**} {
+      allow list, get: if request.auth != null; // Allow listing and getting for any authenticated user for now
+    }
+
+
+    // Lecture Attendance Records
+    match /lectureAttendance/{recordId} {
+      // Students can read their own attendance records
+      allow read: if request.auth != null && resource.data.studentId == request.auth.uid;
+      // Faculty (owner or invited for the specific classroom) can create attendance records
+      // and their facultyId in the record must match their UID.
+      allow create: if request.auth != null && isFaculty() &&
+                       request.resource.data.facultyId == request.auth.uid &&
+                       (
+                         get(/databases/$(database)/documents/classrooms/$(request.resource.data.classroomId)).data.ownerFacultyId == request.auth.uid ||
+                         request.auth.uid in get(/databases/$(database)/documents/classrooms/$(request.resource.data.classroomId)).data.invitedFacultyIds
+                       );
+      // Faculty (owner or invited) can read all attendance for classrooms they are associated with.
+      // This rule might be too broad for reads if faculty should only see records they submitted.
+      // For now, allowing if they are associated with the classroom.
+      allow list: if request.auth != null && isFaculty() &&
+                     (
+                       exists(/databases/$(database)/documents/classrooms/$(request.query.classroomId)) && // Assuming query by classroomId
+                       (
+                         get(/databases/$(database)/documents/classrooms/$(request.query.classroomId)).data.ownerFacultyId == request.auth.uid ||
+                         request.auth.uid in get(/databases/$(database)/documents/classrooms/$(request.query.classroomId)).data.invitedFacultyIds
+                       )
+                     );
+    }
+     match /lectureAttendance/{document=**} {
+       allow read: if request.auth != null && resource.data.studentId == request.auth.uid;
+     }
+
+    // Profile Change Requests
+    match /profileChangeRequests/{requestId} {
+      allow create: if request.auth != null && request.resource.data.userId == request.auth.uid; // User can create their own request
+      allow read, list: if isAdmin(); // Admins can read/list all requests
+      allow update: if isAdmin(); // Admins can update status (approve/deny)
+    }
+     match /profileChangeRequests/{document=**} {
+      allow read, list: if isAdmin();
+     }
+  }
+}
+
+    

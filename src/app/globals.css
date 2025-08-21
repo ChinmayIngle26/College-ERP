@@ -1,0 +1,114 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Ensure no explicit body font-family here, it's handled by next/font and Tailwind config */
+
+@layer base {
+  :root {
+    /* Light Theme Colors based on screenshot */
+    --background: 220 30% 96%; /* Very light gray */
+    --foreground: 215 25% 27%; /* Dark Gray for text */
+
+    --card: 0 0% 100%; /* White cards */
+    --card-foreground: 215 15% 40%; /* Dark Gray text on cards */
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 15% 40%;
+
+    --primary: 190 50% 50%; /* Teal/Blue */
+    --primary-foreground: 0 0% 100%; /* White text on primary */
+
+    --secondary: 195 50% 90%; /* Light Teal/Blue for active sidebar */
+    --secondary-foreground: 190 50% 50%; /* Teal/Blue text on secondary */
+
+    --muted: 210 20% 94%; /* Slightly darker light gray */
+    --muted-foreground: 215 10% 65%; /* Medium Gray */
+
+    --accent: 145 60% 90%; /* Light Green for summary cards */
+    --accent-foreground: 215 15% 40%; /* Dark Gray text on accent */
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 210 15% 88%; /* Lighter border */
+    --input: 210 15% 88%;
+    --ring: 190 50% 50%; /* Teal/Blue ring for focus */
+
+    --chart-1: 190 50% 50%; /* Teal/Blue */
+    --chart-2: 190 40% 70%; /* Light Teal */
+    --chart-3: 160 40% 60%; /* Greenish Teal */
+    --chart-4: 45 90% 55%; /* Yellow (keeping for variation) */
+    --chart-5: 260 70% 60%; /* Purple (keeping for variation) */
+
+    --radius: 0.75rem; /* Slightly more rounded corners */
+
+    /* Sidebar specific variables */
+    --sidebar-background: 0 0% 100%; /* White */
+    --sidebar-foreground: 215 15% 40%; /* Dark Gray for general text */
+    --sidebar-primary: 190 50% 50%; /* Teal/Blue for icons and active text */
+    --sidebar-primary-foreground: 0 0% 100%; /* White text on primary bg (not directly used for sidebar items) */
+    --sidebar-accent: 195 50% 90%; /* Light Teal/Blue for active item background */
+    --sidebar-accent-foreground: 190 50% 50%; /* Teal/Blue for active item text & icon */
+    --sidebar-border: 210 15% 88%; /* Border color if needed, e.g. right border */
+    --sidebar-ring: 190 50% 50%; /* Focus ring, matches primary */
+  }
+
+  .dark {
+    /* Dark Theme Colors */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 5.9%; /* Slightly lighter than background for cards */
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
+
+    --primary: 190 50% 55%; /* Slightly brighter Teal/Blue for dark */
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 240 4% 16%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 4% 12%; /* Darker muted */
+    --muted-foreground: 240 5% 64%;
+
+    --accent: 190 50% 25%; /* Darker Teal/Blue for accent */
+    --accent-foreground: 0 0% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 4% 16%;
+    --input: 240 4% 16%;
+    --ring: 190 50% 55%;
+
+    --chart-1: 190 50% 55%;
+    --chart-2: 190 45% 45%;
+    --chart-3: 160 40% 50%;
+    --chart-4: 45 80% 50%;
+    --chart-5: 0 70% 50%; /* Adjusted destructive-like color for charts */
+
+    /* Dark Sidebar specific variables */
+    --sidebar-background: 240 10% 5.9%; /* Slightly lighter dark for sidebar, matching card */
+    --sidebar-foreground: 0 0% 90%; /* Lighter gray for general text */
+    --sidebar-primary: 190 50% 55%; /* Teal/Blue for icons and active text */
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 4% 16%; /* Darker accent for active item background */
+    --sidebar-accent-foreground: 190 50% 55%; /* Teal/Blue for active item text & icon */
+    --sidebar-border: 240 4% 10%; /* Darker border for sidebar */
+    --sidebar-ring: 190 50% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    /* font-family: var(--font-sans), sans-serif; /* This is now handled by tailwind.config and font-sans class on body */
+  }
+}
