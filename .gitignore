@@ -39,5 +39,6 @@ next-env.d.ts
 
 .genkit/*
 .env*
-studio/firebase-service-account.json
 firebase-service-account.json
+
+
