@@ -1,0 +1,88 @@
+'use server';
+/**
+ * @fileOverview A Genkit flow for analyzing a student's academic grades.
+ *
+ * This flow takes a list of grades and returns an AI-generated analysis,
+ * including a summary, strengths, and areas for improvement.
+ */
+
+import { ai } from '@/ai/ai-instance';
+import { z } from 'zod';
+import type { Grade } from '@/types/grades'; // Assuming Grade type is available
+
+// Input schema for the flow, expecting an array of grades.
+// We'll pass a simplified structure to the prompt.
+export const GradeAnalysisInputSchema = z.array(z.object({
+  courseName: z.string(),
+  grade: z.string(),
+}));
+export type GradeAnalysisInput = z.infer<typeof GradeAnalysisInputSchema>;
+
+// Output schema for the structured analysis from the AI.
+export const GradeAnalysisOutputSchema = z.object({
+  overallSummary: z.string().describe('A brief, encouraging overall summary of the student\'s performance based on the grades.'),
+  strengths: z.array(z.string()).describe('A list of subjects or areas where the student is performing well.'),
+  areasForImprovement: z.array(z.string()).describe('A list of subjects or areas where the student could focus on improving.'),
+});
+export type GradeAnalysisOutput = z.infer<typeof GradeAnalysisOutputSchema>;
+
+
+/**
+ * Analyzes a list of student grades and provides an AI-generated summary.
+ * @param grades An array of grade objects.
+ * @returns A promise that resolves to the AI-generated analysis.
+ */
+export async function analyzeGrades(grades: Grade[]): Promise<GradeAnalysisOutput> {
+  // Map the full Grade objects to the simpler structure expected by the prompt.
+  const analysisInput: GradeAnalysisInput = grades.map(g => ({
+    courseName: g.courseName,
+    grade: g.grade,
+  }));
+  
+  return analyzeGradesFlow(analysisInput);
+}
+
+
+// Define the Genkit prompt for grade analysis.
+const gradeAnalysisPrompt = ai.definePrompt({
+  name: 'gradeAnalysisPrompt',
+  input: { schema: GradeAnalysisInputSchema },
+  output: { schema: GradeAnalysisOutputSchema },
+  prompt: `You are an encouraging and insightful academic advisor. Analyze the following list of student grades.
+
+Provide a brief, positive summary of their performance. Then, identify their strengths (courses with high grades) and suggest areas where they could improve (courses with lower grades). Keep the tone supportive and motivational.
+
+Here are the grades:
+{{#each .}}
+- {{courseName}}: {{grade}}
+{{/each}}
+`,
+});
+
+
+// Define the Genkit flow.
+const analyzeGradesFlow = ai.defineFlow(
+  {
+    name: 'analyzeGradesFlow',
+    inputSchema: GradeAnalysisInputSchema,
+    outputSchema: GradeAnalysisOutputSchema,
+  },
+  async (input) => {
+    // If there are no grades, return a default empty state.
+    if (input.length === 0) {
+        return {
+            overallSummary: "No grades are available yet to analyze. Keep up the good work and your grades will appear here as they are entered!",
+            strengths: [],
+            areasForImprovement: [],
+        };
+    }
+    
+    const { output } = await gradeAnalysisPrompt(input);
+    
+    if (!output) {
+        throw new Error("The AI model did not return a valid analysis. Please try again.");
+    }
+    
+    return output;
+  }
+);

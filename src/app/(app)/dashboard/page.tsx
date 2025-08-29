@@ -23,12 +23,14 @@ import type { Announcement } from '@/services/announcements';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { analyzeGrades, type GradeAnalysisOutput } from '@/ai/flows/analyze-grades-flow';
 
 
 interface DashboardData {
   profile: StudentProfile | null;
   attendanceRecords: AttendanceRecord[];
   grades: Grade[];
+  gradeAnalysis: GradeAnalysisOutput;
   announcements: Announcement[];
   attendancePercentage: number;
   gpa: string;
@@ -89,6 +91,9 @@ export default function DashboardPage() {
             announcementsPromise,
           ]);
 
+          // Fetch grade analysis after grades are available
+          const gradeAnalysisPromise = analyzeGrades(grades);
+
           const totalDays = attendanceRecords.length;
           const presentDays = attendanceRecords.filter(
             (record) => record.status === 'present'
@@ -99,11 +104,15 @@ export default function DashboardPage() {
           const gpa = calculateGPA(grades);
           const upcomingAppointments = 0; // Replace with actual data
           const activeGatePasses = 0; // Replace with actual data
+          
+          const gradeAnalysis = await gradeAnalysisPromise;
+
 
           setData({
             profile: profileData,
             attendanceRecords,
             grades,
+            gradeAnalysis,
             announcements,
             attendancePercentage,
             gpa,
@@ -231,7 +240,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
             <AttendanceOverviewCard attendanceRecords={data.attendanceRecords} />
-            <GradesChartCard grades={data.grades} />
+            <GradesChartCard grades={data.grades} analysis={data.gradeAnalysis} />
           </div>
           <div className="lg:col-span-1">
             <AnnouncementsCard announcements={data.announcements} />
