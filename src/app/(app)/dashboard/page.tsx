@@ -79,10 +79,8 @@ export default function DashboardPage() {
           const idToken = await clientAuth.currentUser!.getIdToken(true); // Force refresh token
           const attendancePromise = getAttendanceRecords(idToken);
           
-          // Conditionally fetch grades only if studentId exists and is not the same as the UID fallback
-          const gradesPromise = (profileData?.studentId && profileData.studentId !== user.uid)
-                ? getGrades(profileData.studentId)
-                : Promise.resolve([]);
+          // Correctly fetch grades using the user's UID, which is the key in the 'grades' collection
+          const gradesPromise = getGrades(user.uid); 
 
           const announcementsPromise = getAnnouncements();
 
@@ -124,7 +122,7 @@ export default function DashboardPage() {
           console.error("Failed to fetch dashboard data:", err);
           const errorMessage = (err as Error).message || "An unknown error occurred.";
           if (errorMessage.includes("Admin SDK initialization failed")) {
-             setError("Could not load all dashboard data because the server is not configured correctly. Please contact the administrator or check the GOOGLE_APPLICATION_CREDENTIALS_JSON variable in your .env.local file.");
+             setError("Could not load all dashboard data because the server is not configured correctly. Please contact the administrator or check the GOOGLE_APPLICATION_CREDENTIALS_B64 variable in your .env.local file.");
           } else {
              setError("Failed to load dashboard data. Please try refreshing the page.");
           }
