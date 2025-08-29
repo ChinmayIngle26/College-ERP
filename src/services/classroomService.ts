@@ -172,7 +172,7 @@ export async function getAllFacultyUsers(idToken: string): Promise<FacultyUser[]
             } as FacultyUser;
         });
     } catch (error) {
-        console.error("[classroomService:getAllFacultyUsers] Error fetching all faculty users (Admin SDK):`, error);
+        console.error("[classroomService:getAllFacultyUsers] Error fetching all faculty users (Admin SDK):", error);
         throw error;
     }
 }
@@ -254,7 +254,6 @@ export async function addStudentToClassroom(idToken: string, classroomId: string
         email: studentData.email || 'N/A',
     };
 
-    // **FIX**: Only add the batch property if it's not undefined.
     if (assignedBatch) {
         studentToAdd.batch = assignedBatch;
     }
