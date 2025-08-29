@@ -2,7 +2,8 @@
   "projects": {
     "testing": "college-hub-43ssh",
     "development": "erp-dev-ef0f0",
-    "default": "erp-dev-ef0f0"
+    "default": "erp-dev-ef0f0",
+    "test": "erp-test-6eba5"
   },
   "targets": {},
   "etags": {}
