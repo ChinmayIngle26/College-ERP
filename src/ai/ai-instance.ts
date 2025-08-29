@@ -1,6 +1,4 @@
 
-'use server';
-
 import {genkit} from 'genkit';
 import {googleAI} from '@genkit-ai/googleai';
 
@@ -26,4 +24,3 @@ export const ai = genkit({
   // For the email generation prompt, gemini-1.5-flash should be good.
   // model: 'googleai/gemini-1.5-flash-latest', // Using a specific gemini model
 });
-
