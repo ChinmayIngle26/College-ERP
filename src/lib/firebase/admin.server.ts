@@ -29,19 +29,25 @@ if (!_getApps().length) {
         if (serviceAccountJsonString) {
             credSource = "GOOGLE_APPLICATION_CREDENTIALS_JSON (environment variable string)";
             console.log(`[AdminServer] Attempting to use ${credSource}. Length: ${serviceAccountJsonString.length}`);
-            try {
-                const serviceAccount = JSON.parse(serviceAccountJsonString);
-                if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
-                    const validationError = new Error(`[AdminServer] Parsed ${credSource} is missing required fields (project_id, private_key, client_email).`);
-                    console.error(validationError.message);
-                    adminInitializationErrorInstance = validationError;
-                } else {
-                    credentials = _cert(serviceAccount);
-                    console.log(`[AdminServer] Credentials parsed successfully from ${credSource}. Project ID from JSON: ${serviceAccount.project_id}`);
+            if (serviceAccountJsonString.trim() === "" || serviceAccountJsonString.length < 2) {
+                 const validationError = new Error(`[AdminServer] The GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable is present but empty or invalid. Please ensure it contains the full JSON object from your service account file.`);
+                 console.error(validationError.message);
+                 adminInitializationErrorInstance = validationError;
+            } else {
+                try {
+                    const serviceAccount = JSON.parse(serviceAccountJsonString);
+                    if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
+                        const validationError = new Error(`[AdminServer] Parsed ${credSource} is missing required fields (project_id, private_key, client_email).`);
+                        console.error(validationError.message);
+                        adminInitializationErrorInstance = validationError;
+                    } else {
+                        credentials = _cert(serviceAccount);
+                        console.log(`[AdminServer] Credentials parsed successfully from ${credSource}. Project ID from JSON: ${serviceAccount.project_id}`);
+                    }
+                } catch (e: any) {
+                    adminInitializationErrorInstance = new Error(`[AdminServer] Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON. It is likely malformed. Please ensure you have copied the entire JSON object correctly. JSON.parse error: ${e.message}`);
+                    console.error(adminInitializationErrorInstance.message, e.stack);
                 }
-            } catch (e: any) {
-                adminInitializationErrorInstance = new Error(`[AdminServer] Failed to parse/validate ${credSource}: ${e.message}`);
-                console.error(adminInitializationErrorInstance.message, e.stack);
             }
         } else {
             credSource = "Application Default Credentials (ADC)";
