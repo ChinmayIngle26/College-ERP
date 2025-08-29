@@ -11,6 +11,7 @@ Before you start, make sure you have the following:
 *   **Internet Connection:** To download software and connect to Firebase.
 *   **A Web Browser:** Such as Chrome, Firefox, Edge, or Safari.
 *   **A Google Account:** You'll need this to create a Firebase project, which acts as the backend for the app.
+*   **An Email Account (for sending notifications):** You'll need SMTP credentials from an email provider like Gmail (using an App Password), SendGrid, or another email service to send notifications.
 *   **Patience:** Setting up software can sometimes be tricky, but follow these steps carefully, and you'll get there!
 
 ## Understanding a Few Basic Terms
@@ -22,6 +23,7 @@ Before you start, make sure you have the following:
     *   On **macOS or Linux:** It's usually called "Terminal".
 *   **`.env.local` file:** A special file in your project where you store secret keys and configuration specific to your local setup (like your Firebase project details). This file is **not** shared publicly.
 *   **Service Account Key:** A JSON file that gives server-side code (like our Next.js backend features) administrative access to your Firebase project. This is also kept secret.
+*   **SMTP:** Simple Mail Transfer Protocol. These are the credentials (host, port, user, password) your application needs to connect to an email server to send emails.
 
 ## Initial Setup Guide
 
@@ -99,38 +101,52 @@ Tell Firebase that a web application will be connecting to it.
 5.  **Add Firebase SDK:** Firebase will show you configuration values (your `firebaseConfig`). **COPY THESE VALUES CAREFULLY!** You'll need them for the `.env.local` file.
 6.  After copying, click **Continue to console**.
 
-### Step 8: Configure Client-Side Firebase Details (`.env.local`)
+### Step 8: Configure API Keys in the `.env.local` File
 
-Your local application needs to know how to connect to *your* Firebase project.
+Your local application needs to know how to connect to *your* Firebase project and other services.
 
 1.  In your `StudentApp` folder, create a file named `.env.local`.
     *   Open a simple text editor.
     *   Copy and paste the following template into the new file:
         ```env
-        # Firebase Client Configuration - Replace with your values from Step 7
+        # Firebase Client Configuration - REQUIRED
+        # Get these from: Firebase Console > Project Settings > General > Your apps > Web app > SDK setup and configuration
         NEXT_PUBLIC_FIREBASE_API_KEY=
         NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=
         NEXT_PUBLIC_FIREBASE_PROJECT_ID=
         NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=
         NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=
         NEXT_PUBLIC_FIREBASE_APP_ID=
-        # NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID= (Optional, for Firebase's own Analytics)
+        # NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID= # Optional, only if you enabled Google Analytics for Firebase
 
-        # Google Analytics 4 (GA4) Configuration (Optional - See Step 16)
-        NEXT_PUBLIC_GA_MEASUREMENT_ID=
+        # Google Analytics 4 (GA4) Configuration - OPTIONAL
+        # Get this from your GA4 Property > Data Streams > Web Stream Details
+        # NEXT_PUBLIC_GA_MEASUREMENT_ID=
 
-        # For Genkit AI Features (Server-Side - Optional, see Step 15 for setup)
-        # This key is used by the backend. For Vercel, set this in Project Settings > Environment Variables.
-        # For local development, you can add it here.
-        # GOOGLE_GENAI_API_KEY=YOUR_GOOGLE_AI_API_KEY_IF_YOU_HAVE_ONE
+        # Genkit AI Features API Key - REQUIRED for AI features
+        # Get this from Google AI Studio: https://aistudio.google.com/app/apikey
+        # For Vercel, also set this in Project Settings > Environment Variables.
+        GOOGLE_GENAI_API_KEY=
 
-        # Firebase Admin SDK (Server-Side - Optional, see Step 9 for setup)
+        # Email Notification (SMTP) Credentials - REQUIRED for sending emails
+        # Get these from your email provider (e.g., Gmail App Password, SendGrid, etc.)
+        # For Vercel, also set these in Project Settings > Environment Variables.
+        SMTP_HOST=
+        SMTP_PORT=
+        SMTP_USER=
+        SMTP_PASS=
+        SMTP_FROM_ADDRESS=
+
+        # Firebase Admin SDK (Server-Side) - REQUIRED
         # For Vercel, set this in Project Settings > Environment Variables.
-        # For local development, if you don't set this, the app will try Application Default Credentials.
+        # For local development, this is the recommended way.
         # The value should be the *entire JSON content* of your service account key, as a single line string.
-        # GOOGLE_APPLICATION_CREDENTIALS_JSON=
+        # See Step 9 for how to get this key.
+        GOOGLE_APPLICATION_CREDENTIALS_JSON=
         ```
-2.  Replace the empty values after each `NEXT_PUBLIC_FIREBASE_...` with the corresponding values you copied from your Firebase `firebaseConfig` in Step 7.
+2.  **Fill in the values:**
+    *   Replace the empty values after each variable with the keys and credentials you obtained.
+    *   For `GOOGLE_APPLICATION_CREDENTIALS_JSON`, you will get the JSON content in the next step.
 3.  Save the `.env.local` file in the root of your `StudentApp` folder.
 
 ### Step 9: Configure Server-Side Firebase Admin Access (Service Account)
@@ -143,15 +159,10 @@ For server-side features (like some advanced data operations or Genkit flows tha
     *   Click on **Generate new private key**. Confirm by clicking **Generate key**.
     *   A JSON file will be downloaded. **Keep this file secure; it grants admin access.** Rename it if you like (e.g., `my-student-app-service-account.json`).
 2.  **Provide Credentials to the App:**
-    *   **For Vercel Deployment (Recommended):**
-        *   Go to your Vercel project settings.
-        *   Navigate to **Environment Variables**.
-        *   Create a new environment variable named `GOOGLE_APPLICATION_CREDENTIALS_JSON`.
-        *   Open the downloaded service account JSON file with a text editor, copy its **entire content**, and paste it as the **value** for this environment variable. It needs to be a single line (Vercel usually handles multi-line inputs well for JSON, but ensure no extra newlines are introduced *within* the JSON string itself).
-    *   **For Local Development (Alternative):**
-        *   You can also place the service account JSON file (e.g., named `firebase-service-account.json`) in the root of your `StudentApp` folder. The application includes a placeholder `firebase-service-account.json`; you would replace its content with your actual key's content.
-        *   Alternatively, add `GOOGLE_APPLICATION_CREDENTIALS_JSON` to your `.env.local` file, pasting the entire JSON content as its value (ensure it's properly string-escaped if needed for a single line in `.env.local`).
-    *   **Priority:** The app will prioritize the `GOOGLE_APPLICATION_CREDENTIALS_JSON` environment variable. If not set, it might attempt to use Application Default Credentials (ADC), which can sometimes work locally if you're authenticated with Google Cloud CLI (`gcloud auth application-default login`).
+    *   Open the downloaded service account JSON file with a text editor.
+    *   Copy its **entire content**.
+    *   Go back to your `.env.local` file and paste the entire JSON content as the value for `GOOGLE_APPLICATION_CREDENTIALS_JSON`. It needs to be on a single line.
+    *   **For Vercel Deployment:** When deploying, you must also copy this variable and its full JSON value into your Vercel project's **Environment Variables** settings.
 
 ### Step 10: Enable Email/Password Authentication in Firebase
 
@@ -211,25 +222,14 @@ For server-side features (like some advanced data operations or Genkit flows tha
     *   **Stream name:** e.g., "Student ERP Web Stream".
     *   Click **Create stream**.
 4.  Find your **MEASUREMENT ID** (starts with "G-", e.g., `G-XXXXXXXXXX`). Copy it.
-5.  Open your `.env.local` file. Find/add the line:
+5.  Open your `.env.local` file. Find the line:
     ```env
-    NEXT_PUBLIC_GA_MEASUREMENT_ID=
+    # NEXT_PUBLIC_GA_MEASUREMENT_ID=
     ```
-    Paste your Measurement ID after the `=`. Save the file.
+    Uncomment it and paste your Measurement ID after the `=`. Save the file.
 6.  Restart your app if it's running.
 
-### Step 17: (Optional) Set Up AI Features with Genkit
-
-1.  Get a Google AI API Key from [Google AI Studio](https://aistudio.google.com/app/apikey).
-2.  Open `.env.local`. Find/add:
-    ```env
-    GOOGLE_GENAI_API_KEY=
-    ```
-    Paste your API key after the `=`.
-3.  If deploying to Vercel, also add `GOOGLE_GENAI_API_KEY` as an environment variable in your Vercel project settings.
-4.  Save and restart your app.
-
-### Step 18: Run the Application!
+### Step 17: Run the Application!
 
 1.  In your Terminal (in `StudentApp` folder), type:
     ```bash
@@ -237,7 +237,7 @@ For server-side features (like some advanced data operations or Genkit flows tha
     ```
 2.  Open your web browser to the "Local" address shown (e.g., `http://localhost:9002`).
 
-### Step 19: Create Your First User (Admin)
+### Step 18: Create Your First User (Admin)
 
 1.  In the app, click **Sign Up**.
     *   **Full Name:** "Admin User"
@@ -248,7 +248,7 @@ For server-side features (like some advanced data operations or Genkit flows tha
     *   **Parent's Email:** `parent@example.com` (dummy)
 2.  Click **Sign Up**.
 
-### Step 20: Manually Set Admin Role in Firestore
+### Step 19: Manually Set Admin Role in Firestore
 
 1.  Go to the Firebase console > **Authentication**. Copy the **User UID** for `admin@gmail.com`.
 2.  Go to **Firestore Database**. Click the `users` collection.
@@ -258,7 +258,7 @@ For server-side features (like some advanced data operations or Genkit flows tha
     *   If `role` does **not** exist: Click **+ Add field**. Field name: `role`, Type: `string`, Value: `admin`. Click **Add**.
 5.  The `admin@gmail.com` user is now an admin.
 
-### Step 21: Sign In as Admin
+### Step 20: Sign In as Admin
 
 1.  Go back to your app. Logout if logged in.
 2.  Sign in with `admin@gmail.com` and your password.
@@ -283,7 +283,7 @@ If you need to switch the application to a different Firebase project (e.g., fro
     *   Follow **Step 9** ("Generate a Service Account Key") to download a new service account JSON file for this *new* project.
     *   Update your `GOOGLE_APPLICATION_CREDENTIALS_JSON` environment variable with the content of this new service account key.
         *   **For Vercel:** Update this in your Vercel project's Environment Variables settings.
-        *   **For local development:** If you are using the `GOOGLE_APPLICATION_CREDENTIALS_JSON` in your `.env.local`, update it there. If you were relying on a `firebase-service-account.json` file in the project root, replace its content with the content of the new key.
+        *   **For local development:** Update the `GOOGLE_APPLICATION_CREDENTIALS_JSON` in your `.env.local`.
 5.  **Update Firebase CLI Association:**
     *   Open your Terminal in the `StudentApp` folder.
     *   Run: `firebase use --add`
@@ -305,10 +305,9 @@ If you need to switch the application to a different Firebase project (e.g., fro
         ```
 9.  **Recreate Admin User (if necessary):**
     *   The users from your old Firebase project will not automatically be in the new one.
-    *   You will likely need to sign up the `admin@gmail.com` user again in the application (which now points to the new project) and then manually set their role to `admin` in the *new* project's Firestore database (as described in **Steps 19 & 20**).
-10. **Check Google Analytics & GenAI Keys:**
-    *   If you use Google Analytics, ensure `NEXT_PUBLIC_GA_MEASUREMENT_ID` in `.env.local` points to a GA4 property associated with your new setup, if applicable.
-    *   If your `GOOGLE_GENAI_API_KEY` is tied to the Google Cloud project of your old Firebase project, you might need to generate a new key for the Google Cloud project associated with your *new* Firebase project and update the environment variable.
+    *   You will likely need to sign up the `admin@gmail.com` user again in the application (which now points to the new project) and then manually set their role to `admin` in the *new* project's Firestore database (as described in **Steps 18 & 19**).
+10. **Check Other API Keys:**
+    *   Update any other keys in your `.env.local` file (like `GOOGLE_GENAI_API_KEY` or `SMTP_...` credentials) if they are tied to the old project or need to be different for the new environment.
 11. **Restart Your Application:**
     *   Stop your local development server (Ctrl+C) and restart it (`npm run dev`).
     *   If deployed on Vercel, you'll need to redeploy for environment variable changes to take full effect.
@@ -337,18 +336,15 @@ After these steps, your application should be connected to the new Firebase proj
     *   Verify project association with `firebase use`.
 *   **"Blocked cross-origin request" warning in terminal:**
     * This is often a development-time warning. The `allowedDevOrigins` in `next.config.js` might need adjustment for your specific preview URL. For `http://localhost:PORT`, this shouldn't block functionality.
-*   **Google Analytics 4 (GA4) not tracking:**
-    *   Check `NEXT_PUBLIC_GA_MEASUREMENT_ID` in `.env.local`.
-    *   Restart the app.
-    *   Allow 24-48 hours for data in GA4 (real-time reports are faster).
-    *   Ad blockers can prevent GA4 tracking.
+*   **Email Sending Fails**:
+    *   Double-check your `SMTP_...` credentials in `.env.local`.
+    *   If using Gmail, ensure you have set up an "App Password" and are using that, not your regular Google password.
+    *   Check your email provider's dashboard for any blocked sign-in attempts.
 *   **Server-Side Features Not Working (especially on Vercel):**
-    *   Ensure `GOOGLE_APPLICATION_CREDENTIALS_JSON` is correctly set as an environment variable in your Vercel project settings with the *full JSON content* of your service account key.
-    *   Ensure `GOOGLE_GENAI_API_KEY` is set in Vercel if using Genkit AI features.
+    *   Ensure `GOOGLE_APPLICATION_CREDENTIALS_JSON` and other server-side keys (`GOOGLE_GENAI_API_KEY`, `SMTP_...`) are correctly set as environment variables in your Vercel project settings.
 
 ## Stopping the Application
 
 1.  Go to the Terminal window where `npm run dev` is running.
 2.  Press `Ctrl+C`.
 3.  Press `Y` and Enter if asked, or `Ctrl+C` again.
-```
