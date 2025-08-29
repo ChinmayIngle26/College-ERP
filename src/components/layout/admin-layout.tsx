@@ -14,6 +14,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   LayoutDashboard,
+  Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -36,6 +37,7 @@ const adminNavigationItems = [
   { href: '/admin', label: 'User Management', icon: Users },
   { href: '/admin/settings', label: 'System Settings', icon: Settings },
   { href: '/admin/requests', label: 'Change Requests', icon: Edit },
+  { href: '/admin/notifications', label: 'Notifications', icon: Send },
 ];
 
 function deleteCookie(name: string) {
@@ -192,7 +194,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
           <nav className="space-y-2">
             {adminNavigationItems.map((item) => {
-              const isActive = (item.href === '/admin' && pathname.startsWith('/admin') && !pathname.includes('/settings') && !pathname.includes('/requests') ) || pathname === item.href;
+              const isActive = (item.href === '/admin' && pathname.startsWith('/admin') && !pathname.includes('/settings') && !pathname.includes('/requests') && !pathname.includes('/notifications') ) || pathname === item.href;
               const finalIsActive = item.href === '/dashboard' ? pathname.startsWith('/dashboard') : isActive;
 
               return (
