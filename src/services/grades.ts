@@ -45,51 +45,36 @@ export async function getGrades(studentId: string): Promise<Grade[]> {
 }
 
 /**
- * Retrieves all grades for a specific course/exam within a classroom.
- * This is a Server Action for faculty to see current grades.
+ * Retrieves all unique course names from the grades collection.
+ * This is a Server Action for faculty to populate selection dropdowns.
  * @param idToken - Faculty's Firebase ID token.
- * @param classroomId - The ID of the classroom.
- * @param courseName - The specific course or exam name.
- * @returns A promise that resolves to an array of Grade objects.
+ * @returns A promise that resolves to an array of unique course name strings.
  */
-export async function getGradesForClassroom(idToken: string, classroomId: string, courseName: string): Promise<Grade[]> {
+export async function getUniqueCourseNames(idToken: string): Promise<string[]> {
     if (adminInitializationError) {
-        console.error("getGradesForClassroom SA Error: Admin SDK init failed:", adminInitializationError.message);
         throw new Error("Server error: Admin SDK initialization failed.");
     }
     if (!adminDb || !adminAuth) {
         throw new Error("Server error: Admin services not initialized.");
     }
-
     try {
         await adminAuth.verifyIdToken(idToken);
     } catch (error) {
         throw new Error("Authentication failed.");
     }
-
     try {
-        const gradesCollectionRef = adminDb.collection('grades');
-        const q = gradesCollectionRef
-            .where('classroomId', '==', classroomId)
-            .where('courseName', '==', courseName);
-        
-        const snapshot = await q.get();
-
-        if (snapshot.empty) {
-            return [];
-        }
-
-        return snapshot.docs.map(docSnap => ({
-            id: docSnap.id,
-            ...docSnap.data(),
-            updatedAt: docSnap.data().updatedAt.toDate(),
-        } as Grade));
-
+        const snapshot = await adminDb.collection('grades').select('courseName').get();
+        const courseNames = new Set<string>();
+        snapshot.forEach(doc => {
+            courseNames.add(doc.data().courseName);
+        });
+        return Array.from(courseNames).sort();
     } catch (error) {
-        console.error(`Error fetching grades for classroom ${classroomId} and course ${courseName}:`, error);
-        throw new Error("Could not fetch grades for the classroom.");
+        console.error("Error fetching unique course names:", error);
+        throw new Error("Could not fetch course names.");
     }
 }
+
 
 /**
  * Updates or creates a grade for a student in a specific course.
@@ -113,10 +98,10 @@ export async function updateStudentGrade(idToken: string, gradeInfo: Omit<Grade,
         throw new Error("Authentication failed.");
     }
 
-    const { classroomId, studentId, courseName, grade } = gradeInfo;
+    const { studentId, courseName, grade } = gradeInfo;
 
     // Use a composite ID for the grade document to ensure one grade per student per course
-    const gradeDocId = `${classroomId}_${studentId}_${courseName.replace(/\s+/g, '-')}`;
+    const gradeDocId = `${studentId}_${courseName.trim().replace(/\s+/g, '-')}`;
     const gradeDocRef = adminDb.collection('grades').doc(gradeDocId);
 
     try {
@@ -131,3 +116,32 @@ export async function updateStudentGrade(idToken: string, gradeInfo: Omit<Grade,
         throw new Error("Failed to save the grade.");
     }
 }
+
+/**
+ * Deletes a student's grade record from Firestore.
+ * This is a Server Action for faculty.
+ * @param idToken - Faculty's Firebase ID token.
+ * @param gradeId - The ID of the grade document to delete.
+ */
+export async function deleteStudentGrade(idToken: string, gradeId: string): Promise<void> {
+    if (adminInitializationError) {
+        throw new Error("Server error: Admin SDK initialization failed.");
+    }
+    if (!adminDb || !adminAuth) {
+        throw new Error("Server error: Admin services not initialized.");
+    }
+    try {
+        await adminAuth.verifyIdToken(idToken);
+    } catch (error) {
+        throw new Error("Authentication failed.");
+    }
+    try {
+        await adminDb.collection('grades').doc(gradeId).delete();
+    } catch (error) {
+        console.error(`Error deleting grade ${gradeId}:`, error);
+        throw new Error("Failed to delete the grade.");
+    }
+}
+
+// This function is no longer needed as grades are decoupled from classrooms
+// export async function getGradesForClassroom(idToken: string, classroomId: string, courseName: string): Promise<Grade[]> { ... }

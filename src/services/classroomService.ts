@@ -1,5 +1,4 @@
 
-
 'use server';
 
 import { adminDb, adminAuth, adminInitializationError } from '@/lib/firebase/admin.server';
@@ -173,7 +172,7 @@ export async function getAllFacultyUsers(idToken: string): Promise<FacultyUser[]
             } as FacultyUser;
         });
     } catch (error) {
-        console.error("[classroomService:getAllFacultyUsers] Error fetching all faculty users (Admin SDK):", error);
+        console.error("[classroomService:getAllFacultyUsers] Error fetching all faculty users (Admin SDK):`, error);
         throw error;
     }
 }
@@ -323,13 +322,16 @@ export async function searchStudents(idToken: string, classroomId: string, searc
     } catch (error) {
         throw new Error("Authentication failed. Invalid ID token.");
     }
-
-    const permCheck = await checkFacultyPermissionForClassroom(classroomId, facultyId);
-    if (!permCheck.permitted || !permCheck.classroomData) {
-        throw new Error("Permission denied or classroom data not found.");
-    }
     
-    const studentsCurrentlyInClassroom = (permCheck.classroomData.students || []).map(s => s.userId);
+    // Global search for grades page does not need classroom permission check
+    let studentsCurrentlyInClassroom: string[] = [];
+    if (classroomId !== '__GLOBAL_SEARCH__') {
+        const permCheck = await checkFacultyPermissionForClassroom(classroomId, facultyId);
+        if (!permCheck.permitted || !permCheck.classroomData) {
+            throw new Error("Permission denied or classroom data not found.");
+        }
+        studentsCurrentlyInClassroom = (permCheck.classroomData.students || []).map(s => s.userId);
+    }
 
     try {
         const usersCollectionRef = adminDb.collection('users');
@@ -344,8 +346,9 @@ export async function searchStudents(idToken: string, classroomId: string, searc
         snapshot.docs.forEach(docSnap => {
             const data = docSnap.data() as StudentProfile; 
             const studentUid = docSnap.id;
-
-            if (studentsCurrentlyInClassroom.includes(studentUid)) {
+            
+            // For classroom-specific searches, filter out students already in the class
+            if (classroomId !== '__GLOBAL_SEARCH__' && studentsCurrentlyInClassroom.includes(studentUid)) {
                 return;
             }
             

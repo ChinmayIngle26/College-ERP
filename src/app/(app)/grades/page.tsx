@@ -9,8 +9,7 @@ import { getGrades } from '@/services/grades';
 import { Suspense, useEffect, useState } from 'react'; // Add useEffect, useState
 import { useAuth } from '@/context/auth-context'; // Import useAuth
 import type { Grade } from '@/services/grades'; // Import Grade type
-
-// No longer need default STUDENT_ID
+import { format } from 'date-fns';
 
 function GradesTableLoader() {
    const { user, loading: authLoading } = useAuth(); // Get user and loading state
@@ -25,8 +24,6 @@ function GradesTableLoader() {
                 setError(null);
                 try {
                     const fetchedGrades = await getGrades(user.uid); // Use user.uid
-                    // Add logic to sort or filter grades if necessary
-                    // const sortedGrades = fetchedGrades.sort(...);
                     setGrades(fetchedGrades);
                 } catch (err) {
                     console.error("Failed to fetch grades:", err);
@@ -55,28 +52,32 @@ function GradesTableLoader() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Course Grades</CardTitle>
+        <CardTitle>My Grades</CardTitle>
       </CardHeader>
       <CardContent>
         {grades.length > 0 ? (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Course Name</TableHead>
-                <TableHead className="text-right">Grade</TableHead>
+                <TableHead>Course / Subject</TableHead>
+                <TableHead>Grade</TableHead>
+                <TableHead className="text-right">Last Updated</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {grades.map((grade) => (
-                <TableRow key={grade.courseName}>
+                <TableRow key={grade.id}>
                   <TableCell>{grade.courseName}</TableCell>
-                  <TableCell className="text-right font-medium">{grade.grade}</TableCell>
+                  <TableCell className="font-medium">{grade.grade}</TableCell>
+                  <TableCell className="text-right text-muted-foreground text-xs">
+                      {format(new Date(grade.updatedAt as Date), 'PP p')}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         ) : (
-          <p className="text-center text-muted-foreground">No grades available.</p>
+          <p className="text-center text-muted-foreground py-8">No grades have been recorded for you yet.</p>
         )}
       </CardContent>
     </Card>
@@ -91,11 +92,9 @@ export default function GradesPage() {
         <h2 className="text-2xl font-bold tracking-tight md:text-3xl">
           Grades
         </h2>
-         {/* Suspense is less critical now but can stay */}
          <Suspense fallback={<Skeleton className="h-72 w-full" />}>
           <GradesTableLoader />
          </Suspense>
-        {/* Optionally add GPA calculation, semester filters, etc. */}
       </div>
     </>
   );

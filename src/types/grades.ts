@@ -6,7 +6,6 @@ import type { Timestamp } from 'firebase/firestore';
  */
 export interface Grade {
   id?: string; // Firestore document ID
-  classroomId: string;
   studentId: string; // The UID of the student
   courseName: string;
   grade: string;

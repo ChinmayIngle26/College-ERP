@@ -14,6 +14,7 @@ import {
   ChevronsLeft,
   ChevronsRight,
   Settings, 
+  GraduationCap,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ const facultyNavigationItems = [
   { href: '/faculty', label: 'Dashboard', icon: Home },
   { href: '/faculty/classrooms', label: 'Manage Classrooms', icon: Users },
   { href: '/faculty/attendance', label: 'Update Attendance', icon: CheckSquare },
+  { href: '/faculty/grades', label: 'Manage Grades', icon: GraduationCap },
   { href: '/', label: 'Student View', icon: Eye },
 ];
 
@@ -300,4 +302,3 @@ export function FacultyLayout({ children }: { children: React.ReactNode }) {
     </TooltipProvider>
   );
 }
-
