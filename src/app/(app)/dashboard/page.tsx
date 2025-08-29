@@ -13,7 +13,7 @@ import { SummaryCard } from '@/components/dashboard/summary-card';
 import { Suspense, useEffect, useState } from 'react'; 
 import { Skeleton } from '@/components/ui/skeleton';
 import { MainHeader } from '@/components/layout/main-header';
-import { Award, CalendarClock, CheckCircle, DoorOpen } from 'lucide-react'; 
+import { Award, CalendarClock, CheckCircle, DoorOpen, AlertTriangle } from 'lucide-react'; 
 import { useAuth } from '@/context/auth-context'; 
 import { auth as clientAuth, db } from '@/lib/firebase/client'; // Import clientAuth
 import type { StudentProfile } from '@/services/profile';
@@ -22,6 +22,7 @@ import type { Grade } from '@/services/grades';
 import type { Announcement } from '@/services/announcements';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 
 interface DashboardData {
@@ -111,7 +112,12 @@ export default function DashboardPage() {
           });
         } catch (err) {
           console.error("Failed to fetch dashboard data:", err);
-          setError("Failed to load dashboard data. Please try refreshing the page.");
+          const errorMessage = (err as Error).message || "An unknown error occurred.";
+          if (errorMessage.includes("Admin SDK initialization failed")) {
+             setError("Could not load all dashboard data because the server is not configured correctly. Please contact the administrator or check the GOOGLE_APPLICATION_CREDENTIALS_JSON variable in your .env.local file.");
+          } else {
+             setError("Failed to load dashboard data. Please try refreshing the page.");
+          }
            toast({
               title: "Dashboard Error",
               description: "Could not load all dashboard data.",
@@ -162,8 +168,18 @@ export default function DashboardPage() {
       return (
           <>
               <MainHeader />
-              <div className="flex h-[calc(100vh-150px)] items-center justify-center"> 
-                  <p className="text-destructive">{error}</p>
+              <div className="flex h-[calc(100vh-150px)] items-center justify-center p-6"> 
+                  <Card className="w-full max-w-2xl border-destructive">
+                      <CardHeader>
+                          <CardTitle className="flex items-center gap-2 text-destructive">
+                              <AlertTriangle className="h-6 w-6" />
+                              Dashboard Error
+                          </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                          <p>{error}</p>
+                      </CardContent>
+                  </Card>
               </div>
           </>
       )
