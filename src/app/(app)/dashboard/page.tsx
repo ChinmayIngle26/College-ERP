@@ -23,7 +23,8 @@ import type { Announcement } from '@/services/announcements';
 import { doc, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { analyzeGrades, type GradeAnalysisOutput } from '@/ai/flows/analyze-grades-flow';
+import { analyzeGrades } from '@/ai/flows/analyze-grades-flow';
+import type { GradeAnalysisOutput } from '@/types/grade-analysis';
 
 
 interface DashboardData {
