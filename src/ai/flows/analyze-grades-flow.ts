@@ -69,12 +69,22 @@ const analyzeGradesFlow = ai.defineFlow(
         };
     }
     
-    const { output } = await gradeAnalysisPrompt(input);
-    
-    if (!output) {
-        throw new Error("The AI model did not return a valid analysis. Please try again.");
+    try {
+      const { output } = await gradeAnalysisPrompt(input);
+      
+      if (!output) {
+          throw new Error("The AI model did not return a valid analysis. Please try again.");
+      }
+      
+      return output;
+    } catch (error) {
+      console.error("[analyzeGradesFlow] Genkit prompt failed:", error);
+      // Return a default structure on error to prevent the client from crashing.
+      return {
+        overallSummary: "AI analysis is currently unavailable. Please check your API key or try again later.",
+        strengths: [],
+        areasForImprovement: [],
+      };
     }
-    
-    return output;
   }
 );
