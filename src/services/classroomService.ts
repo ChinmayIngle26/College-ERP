@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { adminDb, adminAuth, adminInitializationError } from '@/lib/firebase/admin.server';
@@ -252,8 +253,12 @@ export async function addStudentToClassroom(idToken: string, classroomId: string
         studentIdNumber: studentData.studentId || 'N/A', 
         name: studentData.name || 'N/A',
         email: studentData.email || 'N/A',
-        batch: assignedBatch, 
     };
+
+    // **FIX**: Only add the batch property if it's not undefined.
+    if (assignedBatch) {
+        studentToAdd.batch = assignedBatch;
+    }
 
     const classroomDocRef = adminDb.collection('classrooms').doc(classroomId);
     try {
