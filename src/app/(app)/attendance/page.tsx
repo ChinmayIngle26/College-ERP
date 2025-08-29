@@ -2,7 +2,7 @@
 'use client'; 
 
 import { MainHeader } from '@/components/layout/main-header';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getAttendanceRecords } from '@/services/attendance'; 
@@ -14,6 +14,7 @@ import type { AttendanceRecord } from '@/services/attendance';
 import { format, parseISO } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { AlertTriangle } from 'lucide-react';
 
 function AttendanceTableLoader() {
     const { user, loading: authLoading } = useAuth(); 
@@ -33,10 +34,15 @@ function AttendanceTableLoader() {
                     setRecords(fetchedRecords);
                 } catch (err) {
                     console.error("Failed to fetch attendance records:", err);
-                    setError("Could not load attendance data.");
+                    const errorMessage = (err as Error).message || "An unknown error occurred.";
+                    if (errorMessage.includes("Admin SDK initialization failed")) {
+                        setError("Could not load attendance data because the server is not configured correctly. Please contact the administrator or check the GOOGLE_APPLICATION_CREDENTIALS_JSON variable in your .env.local file.");
+                    } else {
+                        setError("Could not load your attendance data. Please try again.");
+                    }
                     toast({
                         title: "Error",
-                        description: "Could not load your attendance data. Please try again.",
+                        description: "Could not load your attendance data.",
                         variant: "destructive",
                     });
                 } finally {
@@ -69,17 +75,35 @@ function AttendanceTableLoader() {
     const sortedDates = useMemo(() => Object.keys(groupedRecords).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()), [groupedRecords]);
 
     if (loading || authLoading) {
-      return <Skeleton className="h-96 w-full" />;
+      return (
+        <Card>
+            <CardHeader><Skeleton className="h-8 w-1/2" /></CardHeader>
+            <CardContent><Skeleton className="h-96 w-full" /></CardContent>
+        </Card>
+      );
     }
 
     if (error) {
-        return <p className="text-center text-destructive">{error}</p>;
+        return (
+            <Card className="border-destructive">
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-destructive">
+                        <AlertTriangle className="h-6 w-6" />
+                        Error Loading Attendance
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p>{error}</p>
+                </CardContent>
+            </Card>
+        );
     }
 
   return (
     <Card>
       <CardHeader>
         <CardTitle>Detailed Attendance Records</CardTitle>
+        <CardDescription>Your day-by-day attendance summary across all subjects.</CardDescription>
       </CardHeader>
       <CardContent>
         {sortedDates.length > 0 ? (
@@ -124,7 +148,7 @@ function AttendanceTableLoader() {
             ))}
           </Accordion>
         ) : (
-           <p className="text-center text-muted-foreground">No attendance records found.</p>
+           <p className="text-center text-muted-foreground py-8">No attendance records found.</p>
         )}
       </CardContent>
     </Card>
