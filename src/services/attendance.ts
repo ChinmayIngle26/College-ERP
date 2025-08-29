@@ -25,13 +25,7 @@ export interface AttendanceRecord {
 export async function getAttendanceRecords(idToken: string): Promise<AttendanceRecord[]> {
   if (adminInitializationError) {
     console.error("getAttendanceRecords SA Error: Admin SDK init failed:", adminInitializationError.message);
-    // Return mock data instead of throwing an error
-    console.log("Returning mock attendance data due to Admin SDK initialization failure.");
-    return [
-        { date: '2024-05-20', status: 'present', lectureName: 'Intro to Mock Data', classroomName: 'CS101', facultyName: 'Dr. Fallback' },
-        { date: '2024-05-21', status: 'absent', lectureName: 'Error Handling 101', classroomName: 'CS101', facultyName: 'Dr. Fallback' },
-        { date: '2024-05-22', status: 'present', lectureName: 'Advanced Mocking', classroomName: 'CS101', facultyName: 'Dr. Fallback' },
-    ];
+    throw new Error("Server error: Admin SDK initialization failed.");
   }
   if (!adminDb || !adminAuth) {
     console.error("getAttendanceRecords SA Error: Admin DB or Auth not initialized.");
@@ -94,9 +88,7 @@ export async function getAttendanceRecords(idToken: string): Promise<AttendanceR
 export async function getLectureAttendanceForDate(idToken: string, classroomId: string, date: string): Promise<LectureAttendanceRecord[]> {
   if (adminInitializationError) {
     console.error("getLectureAttendanceForDate SA Error: Admin SDK init failed:", adminInitializationError.message);
-    // Return mock data
-    console.log("Returning mock lecture attendance data for date due to Admin SDK init failure.");
-    return [];
+    throw new Error("Server error: Admin SDK initialization failed.");
   }
   if (!adminDb || !adminAuth) {
     console.error("getLectureAttendanceForDate SA Error: Admin DB or Auth not initialized.");
@@ -165,9 +157,7 @@ export async function getLectureAttendanceForDateRange(
 ): Promise<LectureAttendanceRecord[]> {
   if (adminInitializationError) {
     console.error("getLectureAttendanceForDateRange SA Error: Admin SDK init failed:", adminInitializationError.message);
-    // Return mock data
-    console.log("Returning mock lecture attendance data for date range due to Admin SDK init failure.");
-    return [];
+    throw new Error("Server error: Admin SDK initialization failed.");
   }
   if (!adminDb || !adminAuth) {
     console.error("getLectureAttendanceForDateRange SA Error: Admin DB or Auth not initialized.");
@@ -232,9 +222,7 @@ export async function getLectureAttendanceForDateRange(
 export async function submitLectureAttendance(records: Omit<LectureAttendanceRecord, 'id' | 'submittedAt'>[]): Promise<void> {
   if (adminInitializationError) {
     console.error("submitLectureAttendance SA Error: Admin SDK init failed:", adminInitializationError.message);
-    // Simulate success
-    console.log("Simulating successful attendance submission due to Admin SDK init failure.");
-    return;
+    throw new Error("Server error: Admin SDK initialization failed.");
   }
   if (!adminDb) {
     console.error("submitLectureAttendance SA Error: Admin DB not initialized.");

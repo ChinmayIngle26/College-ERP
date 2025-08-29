@@ -76,11 +76,7 @@ export async function createClassroom(idToken: string, name: string, subject: st
 export async function getClassroomsByFaculty(idToken: string): Promise<Classroom[]> {
   if (adminInitializationError) {
     console.error("[classroomService:getClassroomsByFaculty SA] Admin SDK init failed:", adminInitializationError.message);
-    console.log("Returning mock faculty classroom data due to Admin SDK init failure.");
-    return [
-        { id: 'mock-class-1', name: 'Mock Computer Science', subject: 'Data Structures', ownerFacultyId: 'mock-faculty-id', invitedFacultyIds: [], students: [], createdAt: new Date() },
-        { id: 'mock-class-2', name: 'Mock Mechanical Eng.', subject: 'Thermodynamics', ownerFacultyId: 'mock-faculty-id', invitedFacultyIds: [], students: [], createdAt: new Date() },
-    ];
+    throw new Error("Server error: Admin SDK initialization failed.");
   }
   if (!adminDb || !adminAuth) {
     console.error("[classroomService:getClassroomsByFaculty SA] Admin DB or Auth not initialized.");
@@ -148,8 +144,7 @@ export async function getClassroomsByFaculty(idToken: string): Promise<Classroom
 export async function getAllFacultyUsers(idToken: string): Promise<FacultyUser[]> {
     if (adminInitializationError) {
       console.error("[classroomService:getAllFacultyUsers SA] Admin SDK init failed:", adminInitializationError.message);
-      console.log("Returning mock faculty user data due to Admin SDK init failure.");
-      return [{ uid: 'mock-faculty-2', name: 'Dr. Mockington', email: 'mock@example.com' }];
+      throw new Error("Server error: Admin SDK initialization failed.");
     }
     if (!adminDb || !adminAuth) {
       console.error("[classroomService:getAllFacultyUsers SA] Admin DB or Auth not initialized.");
@@ -186,11 +181,7 @@ export async function getAllFacultyUsers(idToken: string): Promise<FacultyUser[]
 export async function getStudentsInClassroom(idToken: string, classroomId: string): Promise<ClassroomStudentInfo[]> {
   if (adminInitializationError) {
     console.error("[classroomService:getStudentsInClassroom SA] Admin SDK init failed:", adminInitializationError.message);
-    console.log("Returning mock student data for classroom due to Admin SDK init failure.");
-    return [
-        { userId: 'mock-student-1', studentIdNumber: 'MS-001', name: 'Mock Student Alice', email: 'alice@example.com', batch: 'A' },
-        { userId: 'mock-student-2', studentIdNumber: 'MS-002', name: 'Mock Student Bob', email: 'bob@example.com', batch: 'B' },
-    ];
+    throw new Error("Server error: Admin SDK initialization failed.");
   }
   if (!adminDb || !adminAuth) {
     console.error("[classroomService:getStudentsInClassroom SA] Admin DB or Auth not initialized.");
@@ -222,8 +213,7 @@ export async function getStudentsInClassroom(idToken: string, classroomId: strin
 export async function addStudentToClassroom(idToken: string, classroomId: string, studentUid: string): Promise<void> {
     if (adminInitializationError) {
       console.error("[classroomService:addStudentToClassroom SA] Admin SDK init failed:", adminInitializationError.message);
-      console.log("Simulating successful student addition due to Admin SDK init failure.");
-      return;
+      throw new Error("Server error: Admin SDK initialization failed.");
     }
     if (!adminDb || !adminAuth) {
       console.error("[classroomService:addStudentToClassroom SA] Admin DB or Auth not initialized.");
@@ -280,8 +270,7 @@ export async function addStudentToClassroom(idToken: string, classroomId: string
 export async function removeStudentFromClassroom(idToken: string, classroomId: string, studentUserId: string): Promise<void> {
     if (adminInitializationError) {
       console.error("[classroomService:removeStudentFromClassroom SA] Admin SDK init failed:", adminInitializationError.message);
-      console.log("Simulating successful student removal due to Admin SDK init failure.");
-      return;
+      throw new Error("Server error: Admin SDK initialization failed.");
     }
     if (!adminDb || !adminAuth) {
       console.error("[classroomService:removeStudentFromClassroom SA] Admin DB or Auth not initialized.");
@@ -317,10 +306,7 @@ export async function removeStudentFromClassroom(idToken: string, classroomId: s
 export async function searchStudents(idToken: string, classroomId: string, searchTerm: string): Promise<StudentSearchResultItem[]> {
     if (adminInitializationError) {
       console.error("[classroomService:searchStudents SA] Admin SDK init failed:", adminInitializationError.message);
-      console.log("Returning mock student search results due to Admin SDK init failure.");
-      return [
-          { uid: 'mock-search-1', name: 'Searched Student Charlie', studentId: 'SS-001', email: 'charlie@example.com' },
-      ];
+      throw new Error("Server error: Admin SDK initialization failed.");
     }
     if (!adminDb || !adminAuth) {
       console.error("[classroomService:searchStudents SA] Admin DB or Auth not initialized.");
@@ -381,8 +367,7 @@ export async function searchStudents(idToken: string, classroomId: string, searc
 export async function addInvitedFacultyToClassroom(idToken: string, classroomId: string, facultyToInviteId: string): Promise<void> {
     if (adminInitializationError) {
       console.error("[classroomService:addInvitedFacultyToClassroom SA] Admin SDK init failed:", adminInitializationError.message);
-      console.log("Simulating successful faculty invitation due to Admin SDK init failure.");
-      return;
+      throw new Error("Server error: Admin SDK initialization failed.");
     }
     if (!adminDb || !adminAuth) {
       console.error("[classroomService:addInvitedFacultyToClassroom SA] Admin DB or Auth not initialized.");
@@ -431,8 +416,7 @@ export async function addInvitedFacultyToClassroom(idToken: string, classroomId:
 export async function deleteClassroom(idToken: string, classroomId: string): Promise<void> {
     if (adminInitializationError) {
       console.error("[classroomService:deleteClassroom SA] Admin SDK init failed:", adminInitializationError.message);
-      console.log("Simulating successful classroom deletion due to Admin SDK init failure.");
-      return;
+      throw new Error("Server error: Admin SDK initialization failed.");
     }
     if (!adminDb || !adminAuth) {
       console.error("[classroomService:deleteClassroom SA] Admin DB or Auth not initialized.");
@@ -469,8 +453,7 @@ export async function deleteClassroom(idToken: string, classroomId: string): Pro
 export async function updateStudentBatchInClassroom(idToken: string, classroomId: string, studentUserId: string, newBatch: string): Promise<void> {
     if (adminInitializationError) {
       console.error("[classroomService:updateStudentBatchInClassroom SA] Admin SDK init failed:", adminInitializationError.message);
-      console.log("Simulating successful batch update due to Admin SDK init failure.");
-      return;
+      throw new Error("Server error: Admin SDK initialization failed.");
     }
     if (!adminDb || !adminAuth) {
       console.error("[classroomService:updateStudentBatchInClassroom SA] Admin DB or Auth not initialized.");
@@ -526,11 +509,7 @@ export async function updateStudentBatchInClassroom(idToken: string, classroomId
 export async function getStudentClassroomsWithBatchInfo(idToken: string): Promise<StudentClassroomEnrollmentInfo[]> {
     if (adminInitializationError) {
       console.error("[classroomService:getStudentClassroomsWithBatchInfo SA] Admin SDK init failed:", adminInitializationError.message);
-      console.log("Returning mock student classroom data due to Admin SDK init failure.");
-      return [
-        { classroomId: 'mock-cs-101', classroomName: 'Mock Intro to CS', classroomSubject: 'Computer Science', studentBatchInClassroom: 'A' },
-        { classroomId: 'mock-phy-101', classroomName: 'Mock Physics I', classroomSubject: 'Physics', studentBatchInClassroom: 'B' },
-      ];
+      throw new Error("Server error: Admin SDK initialization failed.");
     }
     if (!adminDb || !adminAuth) {
       console.error("[classroomService:getStudentClassroomsWithBatchInfo SA] Admin DB or Auth not initialized.");
@@ -585,11 +564,7 @@ export async function getStudentClassroomsWithBatchInfo(idToken: string): Promis
 export async function getClassmatesInfo(idToken: string, classroomId: string): Promise<ClassmateInfo[]> {
     if (adminInitializationError) {
       console.error("[classroomService:getClassmatesInfo SA] Admin SDK init failed:", adminInitializationError.message);
-      console.log("Returning mock classmates info due to Admin SDK init failure.");
-      return [
-        { userId: 'mock-classmate-1', name: 'Mock Classmate David', studentIdNumber: 'MCD-001', batch: 'A' },
-        { userId: 'mock-classmate-2', name: 'Mock Classmate Eve', studentIdNumber: 'MCE-002', batch: 'A' },
-      ];
+      throw new Error("Server error: Admin SDK initialization failed.");
     }
     if (!adminDb || !adminAuth) {
       console.error("[classroomService:getClassmatesInfo SA] Admin DB or Auth not initialized.");
