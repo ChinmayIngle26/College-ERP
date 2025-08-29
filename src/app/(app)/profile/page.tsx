@@ -18,7 +18,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Download, Eye, UserSquare, BookOpen, FileText, FileImage, ClipboardList, Edit3, UploadCloud, Send, Edit2, Save, Users, Loader2 } from 'lucide-react';
+import { Download, Eye, UserSquare, BookOpen, FileText, FileImage, ClipboardList, Edit3, UploadCloud, Send, Edit2, Save, Users, Loader2, AlertTriangle } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -42,12 +42,14 @@ function ProfileDetailsLoader() {
 
   const [enrolledClassrooms, setEnrolledClassrooms] = useState<StudentClassroomEnrollmentInfo[]>([]);
   const [loadingClassrooms, setLoadingClassrooms] = useState(true);
+  const [classroomsError, setClassroomsError] = useState<string | null>(null);
+
 
   // State for View Classmates Modal
   const [selectedClassroomForClassmates, setSelectedClassroomForClassmates] = useState<StudentClassroomEnrollmentInfo | null>(null);
   const [classmates, setClassmates] = useState<ClassmateInfo[]>([]);
   const [loadingClassmates, setLoadingClassmatesView] = useState(false); // Renamed to avoid conflict
-  const [classmatesError, setClassmatesError] = useState<string | null>(null);
+  const [fetchClassmatesError, setFetchClassmatesError] = useState<string | null>(null);
   const [isClassmatesModalOpen, setIsClassmatesModalOpen] = useState(false);
   
 
@@ -57,6 +59,7 @@ function ProfileDetailsLoader() {
         setLoading(true);
         setLoadingClassrooms(true);
         setError(null);
+        setClassroomsError(null);
         if (!db) {
           setError("Database connection is not available.");
           setLoading(false);
@@ -65,20 +68,28 @@ function ProfileDetailsLoader() {
         }
         try {
           const idToken = await clientAuth.currentUser.getIdToken();
-          const [fetchedProfile, fetchedClassrooms] = await Promise.all([
-            getStudentProfile(user.uid),
-            getStudentClassroomsWithBatchInfo(idToken)
-          ]);
-          
+          const fetchedProfile = await getStudentProfile(user.uid);
           setProfile(fetchedProfile);
-          if (fetchedProfile) {
+           if (fetchedProfile) {
             setEditableProfile(fetchedProfile);
           }
-          setEnrolledClassrooms(fetchedClassrooms);
+
+          // Fetch classrooms separately and handle its error state independently
+          try {
+            const fetchedClassrooms = await getStudentClassroomsWithBatchInfo(idToken);
+            setEnrolledClassrooms(fetchedClassrooms);
+          } catch(classroomErr) {
+             const errorMessage = (classroomErr as Error).message || "An unknown error occurred fetching classrooms.";
+             if (errorMessage.includes("Admin SDK initialization failed")) {
+                setClassroomsError("Could not load classroom data because the server is not configured correctly. Please contact an administrator.");
+             } else {
+                setClassroomsError("Could not load your classroom information.");
+             }
+          }
 
         } catch (err) {
           console.error("Failed to fetch profile or classroom data:", err);
-          setError("Could not load profile or classroom data.");
+          setError("Could not load your main profile data.");
            toast({
              title: "Loading Error",
              description: "Could not load all your information. Please try refreshing.",
@@ -187,14 +198,14 @@ function ProfileDetailsLoader() {
     setSelectedClassroomForClassmates(classroom);
     setIsClassmatesModalOpen(true);
     setLoadingClassmatesView(true);
-    setClassmatesError(null);
+    setFetchClassmatesError(null);
     try {
         const idToken = await clientAuth.currentUser.getIdToken();
         const fetchedClassmates = await getClassmatesInfo(idToken, classroom.classroomId);
         setClassmates(fetchedClassmates);
     } catch (err) {
         console.error("Error fetching classmates:", err);
-        setClassmatesError((err as Error).message || "Could not load classmates for this classroom.");
+        setFetchClassmatesError((err as Error).message || "Could not load classmates for this classroom.");
         toast({ title: "Error", description: (err as Error).message || "Failed to fetch classmates.", variant: "destructive"});
     } finally {
         setLoadingClassmatesView(false);
@@ -476,6 +487,11 @@ function ProfileDetailsLoader() {
         <CardContent>
           {loadingClassrooms ? (
             <Skeleton className="h-20 w-full" />
+          ) : classroomsError ? (
+            <div className="flex items-center gap-2 text-destructive">
+                <AlertTriangle className="h-5 w-5" />
+                <p>{classroomsError}</p>
+            </div>
           ) : enrolledClassrooms.length > 0 ? (
             <ul className="space-y-3">
               {enrolledClassrooms.map((enrollment) => (
@@ -698,8 +714,8 @@ function ProfileDetailsLoader() {
                             <span>Loading classmates...</span>
                         </div>
                     )}
-                    {classmatesError && <p className="text-destructive text-center">{classmatesError}</p>}
-                    {!loadingClassmates && !classmatesError && classmates.length > 0 && (
+                    {fetchClassmatesError && <p className="text-destructive text-center">{fetchClassmatesError}</p>}
+                    {!loadingClassmates && !fetchClassmatesError && classmates.length > 0 && (
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -719,7 +735,7 @@ function ProfileDetailsLoader() {
                             </TableBody>
                         </Table>
                     )}
-                    {!loadingClassmates && !classmatesError && classmates.length === 0 && (
+                    {!loadingClassmates && !fetchClassmatesError && classmates.length === 0 && (
                         <p className="text-muted-foreground text-center">No other classmates found in this classroom.</p>
                     )}
                 </div>
@@ -762,4 +778,3 @@ export default function ProfilePage() {
     </>
   );
 }
-
