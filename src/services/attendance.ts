@@ -86,8 +86,14 @@ export async function getAttendanceRecords(idToken: string): Promise<AttendanceR
  * @returns A promise that resolves to an array of LectureAttendanceRecord objects or an empty array if none found.
  */
 export async function getLectureAttendanceForDate(idToken: string, classroomId: string, date: string): Promise<LectureAttendanceRecord[]> {
-  if (adminInitializationError) throw new Error("Server error: Admin SDK initialization failed.");
-  if (!adminDb || !adminAuth) throw new Error("Server error: Admin services not initialized.");
+  if (adminInitializationError) {
+    console.error("getLectureAttendanceForDate SA Error: Admin SDK init failed:", adminInitializationError.message);
+    throw new Error("Server error: Admin SDK initialization failed.");
+  }
+  if (!adminDb || !adminAuth) {
+    console.error("getLectureAttendanceForDate SA Error: Admin DB or Auth not initialized.");
+    throw new Error("Server error: Admin services not initialized.");
+  }
 
   try {
     await adminAuth.verifyIdToken(idToken);
@@ -149,8 +155,14 @@ export async function getLectureAttendanceForDateRange(
   startDate: string,
   endDate: string
 ): Promise<LectureAttendanceRecord[]> {
-  if (adminInitializationError) throw new Error("Server error: Admin SDK initialization failed.");
-  if (!adminDb || !adminAuth) throw new Error("Server error: Admin services not initialized.");
+  if (adminInitializationError) {
+    console.error("getLectureAttendanceForDateRange SA Error: Admin SDK init failed:", adminInitializationError.message);
+    throw new Error("Server error: Admin SDK initialization failed.");
+  }
+  if (!adminDb || !adminAuth) {
+    console.error("getLectureAttendanceForDateRange SA Error: Admin DB or Auth not initialized.");
+    throw new Error("Server error: Admin services not initialized.");
+  }
 
   try {
     await adminAuth.verifyIdToken(idToken);

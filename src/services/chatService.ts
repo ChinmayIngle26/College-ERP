@@ -39,8 +39,7 @@ export async function sendMessage(
   }
 
   const senderId = decodedToken.uid;
-  // Attempt to get senderName from 'users' collection
-  let senderName = decodedToken.name || decodedToken.email || 'Anonymous'; // Fallback if name not in token
+  let senderName = decodedToken.name || decodedToken.email || 'Anonymous';
   try {
     const userDoc = await adminDb.collection('users').doc(senderId).get();
     if (userDoc.exists && userDoc.data()?.name) {
