@@ -8,7 +8,7 @@
  * to dispatch the emails.
  */
 
-import { ai } from '@/ai/genkit';
+import { ai } from '@/ai/ai-instance';
 import { z } from 'zod';
 import { sendEmail } from '@/services/email-service';
 
