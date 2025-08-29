@@ -48,6 +48,12 @@ const calculateGPA = (grades: Grade[]): string => {
   return (totalPoints / validGradesCount).toFixed(1);
 };
 
+const defaultGradeAnalysis: GradeAnalysisOutput = {
+    overallSummary: "AI analysis is currently unavailable. Please check back later.",
+    strengths: [],
+    areasForImprovement: []
+};
+
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth(); 
@@ -79,7 +85,6 @@ export default function DashboardPage() {
           const idToken = await clientAuth.currentUser!.getIdToken(true); // Force refresh token
           const attendancePromise = getAttendanceRecords(idToken);
           
-          // Correctly fetch grades using the user's UID, which is the key in the 'grades' collection
           const gradesPromise = getGrades(user.uid); 
 
           const announcementsPromise = getAnnouncements();
@@ -90,8 +95,18 @@ export default function DashboardPage() {
             announcementsPromise,
           ]);
 
-          // Fetch grade analysis after grades are available
-          const gradeAnalysisPromise = analyzeGrades(grades);
+          let gradeAnalysis: GradeAnalysisOutput;
+          try {
+            gradeAnalysis = await analyzeGrades(grades);
+          } catch (aiError) {
+              console.error("Dashboard: AI grade analysis failed. Using default.", aiError);
+              toast({
+                  title: "AI Analysis Unavailable",
+                  description: "Could not generate AI grade analysis. Displaying grades only.",
+                  variant: "default"
+              });
+              gradeAnalysis = defaultGradeAnalysis;
+          }
 
           const totalDays = attendanceRecords.length;
           const presentDays = attendanceRecords.filter(
@@ -103,9 +118,6 @@ export default function DashboardPage() {
           const gpa = calculateGPA(grades);
           const upcomingAppointments = 0; // Replace with actual data
           const activeGatePasses = 0; // Replace with actual data
-          
-          const gradeAnalysis = await gradeAnalysisPromise;
-
 
           setData({
             profile: profileData,
