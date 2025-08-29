@@ -37,7 +37,7 @@ export async function analyzeGrades(grades: Grade[]): Promise<GradeAnalysisOutpu
 // Define the Genkit prompt for grade analysis.
 const gradeAnalysisPrompt = ai.definePrompt({
   name: 'gradeAnalysisPrompt',
-  model: 'googleai/gemini-1.5-flash-latest', // Specify the model to use
+  model: 'googleai/gemini-1.5-flash', // Specify the model to use
   input: { schema: GradeAnalysisInputSchema },
   output: { schema: GradeAnalysisOutputSchema },
   prompt: `You are an encouraging and insightful academic advisor. Analyze the following list of student grades.
