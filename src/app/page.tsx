@@ -4,8 +4,25 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowRight, BookOpen, UserCheck, CheckSquare, BarChart, FileLock, Users } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  ArrowRight,
+  BookOpen,
+  UserCheck,
+  Users,
+  BarChart,
+  FileLock,
+  CheckSquare,
+  ShieldCheck,
+  Clock,
+  Bell,
+  GraduationCap,
+  LayoutDashboard,
+  CalendarDays,
+  CreditCard,
+  Library,
+  Bus,
+} from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
@@ -13,37 +30,52 @@ import { motion } from 'framer-motion';
 
 const featureCards = [
     {
-        icon: BookOpen,
-        title: 'Effortless Academics',
-        description: 'Access grades, attendance, and schedules all in one place. Stay on top of your coursework with ease.'
+        icon: LayoutDashboard,
+        title: 'Student Dashboard',
+        description: 'A central hub for your academic life, from grades to schedules.'
     },
     {
-        icon: UserCheck,
-        title: 'Centralized Profile',
-        description: 'Manage your personal, academic, and contact information through a single, secure student profile.'
+        icon: CalendarDays,
+        title: 'Attendance & Timetable',
+        description: 'Track your attendance and never miss a class with an integrated timetable.'
+    },
+    {
+        icon: GraduationCap,
+        title: 'Examination & Results',
+        description: 'Access exam schedules, admit cards, and view your results instantly.'
+    },
+    {
+        icon: CreditCard,
+        title: 'Fees & Finance',
+        description: 'Manage your fee payments and track your financial records with ease.'
+    },
+    {
+        icon: Library,
+        title: 'Library & Resources',
+        description: 'Browse the library catalog and access digital learning resources.'
     },
     {
         icon: Users,
-        title: 'Stay Connected',
-        description: 'Connect with classmates and faculty through integrated chat and classroom directories.'
+        title: 'Connect & Collaborate',
+        description: 'Engage with faculty and classmates through integrated classroom directories.'
     }
 ];
 
-const insightItems = [
+const valuePropositions = [
     {
-        icon: BarChart,
-        value: '95%',
-        label: 'Attendance Accuracy'
+        icon: Clock,
+        title: '24/7 Access',
+        description: 'Your academic world is always available, anytime, anywhere, on any device.'
     },
     {
-        icon: FileLock,
-        value: '24/7',
-        label: 'Secure Record Access'
+        icon: ShieldCheck,
+        title: 'Secure & Verified Login',
+        description: 'Rest assured that your data is protected with secure, role-based access.'
     },
     {
-        icon: CheckSquare,
-        value: '50%',
-        label: 'Less Paperwork'
+        icon: Bell,
+        title: 'Real-time Communication',
+        description: 'Stay informed with instant notifications and announcements from the college.'
     }
 ];
 
@@ -68,8 +100,8 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-gradient-to-br from-background via-muted/50 to-background overflow-x-hidden">
-      <motion.header 
+    <div className="flex min-h-screen flex-col bg-background overflow-x-hidden">
+      <motion.header
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5 }}
@@ -86,6 +118,12 @@ export default function LandingPage() {
             />
             <span className="font-bold">AISSMS ITI</span>
           </div>
+          <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+            <Link href="/" className="transition-colors hover:text-primary">Home</Link>
+            <Link href="#" className="transition-colors text-muted-foreground hover:text-primary">About</Link>
+            <Link href="#" className="transition-colors text-muted-foreground hover:text-primary">Contact</Link>
+            <Link href="#" className="transition-colors text-muted-foreground hover:text-primary">FAQ</Link>
+          </nav>
           <nav className="ml-auto flex items-center space-x-2">
             <Button asChild variant="ghost">
                 <Link href="/signin">Sign In</Link>
@@ -98,46 +136,76 @@ export default function LandingPage() {
       </motion.header>
 
       <main className="flex-1">
-        <section className="container grid items-center gap-6 pb-8 pt-10 md:py-16">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-            className="mx-auto flex max-w-[980px] flex-col items-center gap-4 text-center">
-            <h1 className="text-3xl font-extrabold leading-tight tracking-tighter md:text-5xl lg:text-6xl">
-              A Unified Platform for Modern Education
-            </h1>
-            <p className="max-w-[700px] text-lg text-muted-foreground">
-              By the students, for the students.
-            </p>
-            <motion.div 
-                 whileHover={{ scale: 1.05 }}
-                 whileTap={{ scale: 0.95 }}
-                >
-                <Button asChild size="lg">
-                    <Link href="/signup">
-                    Get Started <ArrowRight className="ml-2 h-4 w-4" />
-                    </Link>
-                </Button>
+        <section className="relative">
+          <div 
+            aria-hidden="true" 
+            className="absolute inset-0 grid grid-cols-2 -space-x-52 opacity-40 dark:opacity-20"
+          >
+              <div className="blur-[106px] h-56 bg-gradient-to-br from-primary to-purple-400 dark:from-blue-700"></div>
+              <div className="blur-[106px] h-32 bg-gradient-to-r from-cyan-400 to-sky-300 dark:to-indigo-600"></div>
+          </div>
+          <div className="container relative grid items-center gap-6 pb-8 pt-10 md:py-16">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="mx-auto flex max-w-[980px] flex-col items-center gap-4 text-center">
+              <h1 className="text-3xl font-extrabold leading-tight tracking-tighter md:text-5xl lg:text-6xl">
+                Unified ERP for Smarter Campus Management
+              </h1>
+              <p className="max-w-[700px] text-lg text-muted-foreground">
+                By the students, for the students. Streamlining every aspect of your college experience.
+              </p>
+              <motion.div
+                   whileHover={{ scale: 1.05 }}
+                   whileTap={{ scale: 0.95 }}
+                   className="flex flex-wrap justify-center gap-4 mt-4"
+                  >
+                  <Button asChild size="lg">
+                      <Link href="/signin">
+                      Login to Portal <ArrowRight className="ml-2 h-4 w-4" />
+                      </Link>
+                  </Button>
+                  <Button asChild size="lg" variant="outline">
+                      <Link href="/signup">
+                      Request Access
+                      </Link>
+                  </Button>
+              </motion.div>
             </motion.div>
-          </motion.div>
+          </div>
         </section>
 
-        <section className="container py-12">
-            <div className="grid gap-8 md:grid-cols-3">
+        <section className="container py-16">
+            <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5 }}
+                className="text-center mb-12"
+            >
+                <h2 className="text-3xl font-bold">Everything You Need, All in One Place</h2>
+                <p className="text-muted-foreground mt-2">Explore the core modules of our integrated ERP system.</p>
+            </motion.div>
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                 {featureCards.map((feature, index) => (
                      <motion.div
                         key={index}
                         initial={{ opacity: 0, y: 50 }}
                         whileInView={{ opacity: 1, y: 0 }}
                         viewport={{ once: true }}
-                        transition={{ duration: 0.5, delay: index * 0.2 }}
+                        transition={{ duration: 0.5, delay: index * 0.1 }}
                      >
-                        <Card className="h-full hover:shadow-lg transition-shadow duration-300">
+                        <Card className="h-full hover:shadow-lg transition-shadow duration-300 flex flex-col">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2"><feature.icon className="text-primary"/> {feature.title}</CardTitle>
+                                <CardTitle className="flex items-center gap-3">
+                                  <div className="p-2 bg-primary/10 rounded-md">
+                                    <feature.icon className="h-6 w-6 text-primary"/>
+                                  </div>
+                                  {feature.title}
+                                </CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="flex-grow">
                                 <p className="text-muted-foreground">{feature.description}</p>
                             </CardContent>
                         </Card>
@@ -155,11 +223,11 @@ export default function LandingPage() {
                     transition={{ duration: 0.5 }}
                     className="text-center mb-12"
                 >
-                    <h2 className="text-3xl font-bold">Key Insights at a Glance</h2>
-                    <p className="text-muted-foreground mt-2">Empowering education with data-driven efficiency.</p>
+                    <h2 className="text-3xl font-bold">Why Choose This ERP?</h2>
+                    <p className="text-muted-foreground mt-2">Empowering education with data-driven efficiency and seamless access.</p>
                 </motion.div>
                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    {insightItems.map((item, index) => (
+                    {valuePropositions.map((item, index) => (
                         <motion.div
                             key={index}
                             initial={{ opacity: 0, scale: 0.8 }}
@@ -167,10 +235,12 @@ export default function LandingPage() {
                             viewport={{ once: true }}
                             transition={{ duration: 0.5, delay: index * 0.2 }}
                         >
-                            <Card className="text-center p-6">
-                                <item.icon className="mx-auto h-12 w-12 text-primary mb-4" />
-                                <p className="text-4xl font-bold text-foreground">{item.value}</p>
-                                <p className="text-muted-foreground mt-1">{item.label}</p>
+                            <Card className="text-center p-6 h-full">
+                                <div className="mx-auto h-16 w-16 flex items-center justify-center rounded-full bg-primary/10 mb-4">
+                                  <item.icon className="h-8 w-8 text-primary" />
+                                </div>
+                                <h3 className="text-xl font-bold text-foreground mb-2">{item.title}</h3>
+                                <p className="text-muted-foreground">{item.description}</p>
                             </Card>
                         </motion.div>
                     ))}
@@ -179,7 +249,7 @@ export default function LandingPage() {
         </section>
       </main>
 
-      <motion.footer 
+      <motion.footer
         initial={{ opacity: 0 }}
         whileInView={{ opacity: 1 }}
         viewport={{ once: true }}
@@ -189,6 +259,10 @@ export default function LandingPage() {
             <p className="text-center text-sm leading-loose text-muted-foreground md:text-left">
                 &copy; {new Date().getFullYear()} Chinmay Ingle. All Rights Reserved.
             </p>
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <Link href="#" className="hover:text-primary">Privacy Policy</Link>
+                <Link href="#" className="hover:text-primary">Terms of Service</Link>
+            </div>
         </div>
       </motion.footer>
     </div>
