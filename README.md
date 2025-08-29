@@ -137,32 +137,47 @@ Your local application needs to know how to connect to *your* Firebase project a
         SMTP_PASS=
         SMTP_FROM_ADDRESS=
 
-        # Firebase Admin SDK (Server-Side) - REQUIRED
+        # Firebase Admin SDK (Server-Side) - REQUIRED (Use one method below)
         # For Vercel, set this in Project Settings > Environment Variables.
         # For local development, this is the recommended way.
-        # The value should be the *entire JSON content* of your service account key, as a single line string.
-        # See Step 9 for how to get this key.
-        GOOGLE_APPLICATION_CREDENTIALS_JSON=
+        # This should be the Base64 encoded string of your service account JSON file.
+        # See Step 9 for how to generate this.
+        GOOGLE_APPLICATION_CREDENTIALS_B64=
+
+        # DEPRECATED: Raw JSON string (less reliable, use Base64 above)
+        # GOOGLE_APPLICATION_CREDENTIALS_JSON=
         ```
 2.  **Fill in the values:**
     *   Replace the empty values after each variable with the keys and credentials you obtained.
-    *   For `GOOGLE_APPLICATION_CREDENTIALS_JSON`, you will get the JSON content in the next step.
+    *   For `GOOGLE_APPLICATION_CREDENTIALS_B64`, you will generate the Base64 string in the next step.
 3.  Save the `.env.local` file in the root of your `StudentApp` folder.
 
 ### Step 9: Configure Server-Side Firebase Admin Access (Service Account)
 
-For server-side features (like some advanced data operations or Genkit flows that interact with Firebase Admin), the application needs admin credentials.
+For server-side features (like some advanced data operations or Genkit flows that interact with Firebase Admin), the application needs admin credentials. **We will use a Base64 encoded string which is more reliable.**
 
 1.  **Generate a Service Account Key:**
     *   In the Firebase console, go to your Project Settings (click the gear icon near "Project Overview").
     *   Go to the **Service accounts** tab.
     *   Click on **Generate new private key**. Confirm by clicking **Generate key**.
-    *   A JSON file will be downloaded. **Keep this file secure; it grants admin access.** Rename it if you like (e.g., `my-student-app-service-account.json`).
-2.  **Provide Credentials to the App:**
-    *   Open the downloaded service account JSON file with a text editor.
-    *   Copy its **entire content**.
-    *   Go back to your `.env.local` file and paste the entire JSON content as the value for `GOOGLE_APPLICATION_CREDENTIALS_JSON`. It needs to be on a single line.
-    *   **For Vercel Deployment:** When deploying, you must also copy this variable and its full JSON value into your Vercel project's **Environment Variables** settings.
+    *   A JSON file will be downloaded. **Keep this file secure; it grants admin access.** Save it somewhere safe on your computer.
+
+2.  **Convert the JSON key to Base64:**
+    *   You can use a simple online tool or a local command to do this.
+    *   **Online Tool (Simple):** Go to [https://www.base64encode.net/](https://www.base64encode.net/).
+        *   Select **"Encode files into Base64 format"**.
+        *   Click the box to upload your downloaded JSON file.
+        *   Click the **"ENCODE"** button.
+        *   Copy the resulting long string of text from the output box.
+    *   **Local Command (Advanced):** Open your terminal.
+        *   On **macOS/Linux**: `base64 -w 0 /path/to/your/downloaded-key.json`
+        *   On **Windows (PowerShell)**: `[Convert]::ToBase64String([IO.File]::ReadAllBytes("/path/to/your/downloaded-key.json"))`
+        *   Replace `/path/to/your/downloaded-key.json` with the actual path to your file. Copy the output.
+
+3.  **Provide Credentials to the App:**
+    *   Go back to your `.env.local` file.
+    *   Paste the entire **Base64 string** you copied as the value for `GOOGLE_APPLICATION_CREDENTIALS_B64`.
+    *   **For Vercel Deployment:** When deploying, you must also copy this variable and its full Base64 value into your Vercel project's **Environment Variables** settings.
 
 ### Step 10: Enable Email/Password Authentication in Firebase
 
@@ -280,10 +295,10 @@ If you need to switch the application to a different Firebase project (e.g., fro
     *   Save the `.env.local` file.
 4.  **Update Server-Side Admin Configuration (Service Account):**
     *   Go to your *new* Firebase project in the Firebase console.
-    *   Follow **Step 9** ("Generate a Service Account Key") to download a new service account JSON file for this *new* project.
-    *   Update your `GOOGLE_APPLICATION_CREDENTIALS_JSON` environment variable with the content of this new service account key.
+    *   Follow **Step 9** to generate a new Base64-encoded service account key string for this *new* project.
+    *   Update your `GOOGLE_APPLICATION_CREDENTIALS_B64` environment variable with this new string.
         *   **For Vercel:** Update this in your Vercel project's Environment Variables settings.
-        *   **For local development:** Update the `GOOGLE_APPLICATION_CREDENTIALS_JSON` in your `.env.local`.
+        *   **For local development:** Update the `GOOGLE_APPLICATION_CREDENTIALS_B64` in your `.env.local`.
 5.  **Update Firebase CLI Association:**
     *   Open your Terminal in the `StudentApp` folder.
     *   Run: `firebase use --add`
@@ -341,7 +356,7 @@ After these steps, your application should be connected to the new Firebase proj
     *   If using Gmail, ensure you have set up an "App Password" and are using that, not your regular Google password.
     *   Check your email provider's dashboard for any blocked sign-in attempts.
 *   **Server-Side Features Not Working (especially on Vercel):**
-    *   Ensure `GOOGLE_APPLICATION_CREDENTIALS_JSON` and other server-side keys (`GOOGLE_GENAI_API_KEY`, `SMTP_...`) are correctly set as environment variables in your Vercel project settings.
+    *   Ensure `GOOGLE_APPLICATION_CREDENTIALS_B64` and other server-side keys (`GOOGLE_GENAI_API_KEY`, `SMTP_...`) are correctly set as environment variables in your Vercel project's settings.
 
 ## Stopping the Application
 

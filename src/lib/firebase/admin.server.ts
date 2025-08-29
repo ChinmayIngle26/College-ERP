@@ -19,6 +19,8 @@ let adminDbInstance: Firestore | null = null;
 let adminInitializationErrorInstance: Error | null = null;
 
 const serviceAccountJsonString = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+const serviceAccountB64String = process.env.GOOGLE_APPLICATION_CREDENTIALS_B64;
+
 
 if (!_getApps().length) {
     console.log("[AdminServer] No Firebase admin apps initialized yet. Attempting initialization.");
@@ -26,36 +28,57 @@ if (!_getApps().length) {
     let credSource = "unknown";
 
     try {
-        if (serviceAccountJsonString) {
-            credSource = "GOOGLE_APPLICATION_CREDENTIALS_JSON (environment variable string)";
-            console.log(`[AdminServer] Attempting to use ${credSource}. Length: ${serviceAccountJsonString.length}`);
-            if (serviceAccountJsonString.trim() === "" || serviceAccountJsonString.length < 2) {
-                 const validationError = new Error(`[AdminServer] The GOOGLE_APPLICATION_CREDENTIALS_JSON environment variable is present but empty or invalid. Please ensure it contains the full JSON object from your service account file.`);
+        let serviceAccountContent: string | undefined;
+
+        // Priority 1: Base64 encoded credentials
+        if (serviceAccountB64String) {
+            credSource = "GOOGLE_APPLICATION_CREDENTIALS_B64";
+            console.log(`[AdminServer] Found ${credSource}. Attempting to decode and parse.`);
+            try {
+                serviceAccountContent = Buffer.from(serviceAccountB64String, 'base64').toString('utf8');
+            } catch (e: any) {
+                adminInitializationErrorInstance = new Error(`[AdminServer] Failed to decode Base64 string from ${credSource}. Error: ${e.message}`);
+                console.error(adminInitializationErrorInstance.message);
+            }
+        } 
+        // Priority 2: Raw JSON string credentials
+        else if (serviceAccountJsonString) {
+            credSource = "GOOGLE_APPLICATION_CREDENTIALS_JSON";
+            console.log(`[AdminServer] Found ${credSource}. Attempting to parse.`);
+            serviceAccountContent = serviceAccountJsonString;
+        } 
+        // Priority 3: Fallback to Application Default Credentials
+        else {
+            credSource = "Application Default Credentials (ADC)";
+            console.log(`[AdminServer] No specific credentials found. Falling back to ${credSource}.`);
+        }
+
+        // If we have content (from B64 or JSON string), parse it.
+        if (serviceAccountContent) {
+             if (serviceAccountContent.trim() === "" || serviceAccountContent.length < 2) {
+                 const validationError = new Error(`[AdminServer] The credential content from ${credSource} is empty or invalid.`);
                  console.error(validationError.message);
                  adminInitializationErrorInstance = validationError;
-            } else {
-                try {
-                    const serviceAccount = JSON.parse(serviceAccountJsonString);
+             } else {
+                 try {
+                    const serviceAccount = JSON.parse(serviceAccountContent);
                     if (!serviceAccount.project_id || !serviceAccount.private_key || !serviceAccount.client_email) {
-                        const validationError = new Error(`[AdminServer] Parsed ${credSource} is missing required fields (project_id, private_key, client_email).`);
+                        const validationError = new Error(`[AdminServer] Parsed credentials from ${credSource} are missing required fields (project_id, private_key, client_email).`);
                         console.error(validationError.message);
                         adminInitializationErrorInstance = validationError;
                     } else {
                         credentials = _cert(serviceAccount);
-                        console.log(`[AdminServer] Credentials parsed successfully from ${credSource}. Project ID from JSON: ${serviceAccount.project_id}`);
+                        console.log(`[AdminServer] Credentials parsed successfully from ${credSource}. Project ID: ${serviceAccount.project_id}`);
                     }
-                } catch (e: any) {
-                    adminInitializationErrorInstance = new Error(`[AdminServer] Failed to parse GOOGLE_APPLICATION_CREDENTIALS_JSON. It is likely malformed. Please ensure you have copied the entire JSON object correctly. JSON.parse error: ${e.message}`);
+                 } catch (e: any) {
+                    adminInitializationErrorInstance = new Error(`[AdminServer] Failed to parse JSON content from ${credSource}. Content is likely malformed. JSON.parse error: ${e.message}`);
                     console.error(adminInitializationErrorInstance.message, e.stack);
-                }
-            }
-        } else {
-            credSource = "Application Default Credentials (ADC)";
-            console.log(`[AdminServer] GOOGLE_APPLICATION_CREDENTIALS_JSON is NOT set. Attempting to use ${credSource}.`);
-            // For ADC, initializeApp is called without specific credential object.
+                 }
+             }
         }
-
-        if (!adminInitializationErrorInstance) { // Proceed only if prior credential processing was okay
+        
+        // Initialize app if no errors so far
+        if (!adminInitializationErrorInstance) {
             console.log(`[AdminServer] Initializing Firebase Admin App using ${credSource}...`);
             const appOptions = credentials ? { credential: credentials } : undefined;
             adminAppInstance = _initializeApp(appOptions);
@@ -64,28 +87,17 @@ if (!_getApps().length) {
                 try {
                     adminAuthInstance = _getAuth(adminAppInstance);
                     adminDbInstance = _getFirestore(adminAppInstance);
-                    // Check if project ID is available directly on the app's options
                     const projectIdFromAppOptions = adminAppInstance.options?.projectId;
                     if (projectIdFromAppOptions) {
-                         console.log(`[AdminServer] Firebase Admin App initialized successfully via ${credSource}. App Name: ${adminAppInstance.name}, Project ID from options: ${projectIdFromAppOptions}`);
+                         console.log(`[AdminServer] Firebase Admin App initialized successfully. App Name: ${adminAppInstance.name}, Project ID: ${projectIdFromAppOptions}`);
                     } else {
-                        // Attempt to get project ID from the service if options don't have it
-                        // This is a fallback and might not always be available depending on initialization
-                        const projectIdFromService = (adminAppInstance.options.credential as any)?.projectId || (adminAppInstance.options.credential as any)?.getProjectId?.();
-                        if(projectIdFromService) {
-                            console.log(`[AdminServer] Firebase Admin App initialized successfully via ${credSource}. App Name: ${adminAppInstance.name}, Project ID from service: ${projectIdFromService}`);
-                        } else {
-                            console.warn(`[AdminServer] Firebase Admin App initialized via ${credSource}, services obtained, but Project ID is MISSING or not accessible from app.options or credential. App Name: ${adminAppInstance.name}. Options: ${JSON.stringify(adminAppInstance.options)}`);
-                        }
+                        console.warn(`[AdminServer] Firebase Admin App initialized successfully, but Project ID is MISSING from app options.`);
                     }
-                    console.log("[AdminServer] Firebase Admin Auth and Firestore services obtained.");
                 } catch (serviceError: any) {
-                    const serviceFailureMsg = `[AdminServer] initializeApp() call via ${credSource} seemed to return an app object, but failed to get Auth/Firestore services. Error: ${serviceError.message}. App object (if any): ${JSON.stringify(adminAppInstance || null)}`;
+                    const serviceFailureMsg = `[AdminServer] initializeApp() via ${credSource} seemed to succeed, but failed to get Auth/Firestore services. Error: ${serviceError.message}`;
                     console.error(serviceFailureMsg, serviceError.stack);
                     adminInitializationErrorInstance = new Error(serviceFailureMsg);
-                    adminAppInstance = undefined;
-                    adminAuthInstance = null;
-                    adminDbInstance = null;
+                    adminAppInstance = undefined; // Nullify on partial failure
                 }
             } else {
                  const initFailureMsg = `[AdminServer] initializeApp() call via ${credSource} returned a null/undefined app object. This is a critical failure.`;
@@ -93,14 +105,13 @@ if (!_getApps().length) {
                  adminInitializationErrorInstance = new Error(initFailureMsg);
             }
         }
+
     } catch (error: any) {
-        // This catches errors from initializeApp itself if it throws directly
-        adminInitializationErrorInstance = new Error(`[AdminServer] CRITICAL Exception during Firebase Admin SDK initializeApp attempt with ${credSource}: ${error.message}`);
+        adminInitializationErrorInstance = new Error(`[AdminServer] CRITICAL Exception during Firebase Admin SDK initialization attempt with ${credSource}: ${error.message}`);
         console.error(adminInitializationErrorInstance.message, error.stack);
         adminAppInstance = undefined;
-        adminAuthInstance = null;
-        adminDbInstance = null;
     }
+
 } else {
     console.log("[AdminServer] Firebase admin app already initialized. Getting existing instance.");
     adminAppInstance = _getApps()[0];
@@ -108,37 +119,28 @@ if (!_getApps().length) {
         try {
             adminAuthInstance = _getAuth(adminAppInstance);
             adminDbInstance = _getFirestore(adminAppInstance);
-            console.log("[AdminServer] Existing Firebase Admin Auth and Firestore services obtained.");
-             const existingProjectId = adminAppInstance.options?.projectId || (adminAppInstance.options.credential as any)?.projectId || (adminAppInstance.options.credential as any)?.getProjectId?.();
-             if (!existingProjectId) {
-                console.warn("[AdminServer] Existing app instance is missing projectId in options/credential:", JSON.stringify(adminAppInstance.options));
-            } else {
-                console.log(`[AdminServer] Existing app Project ID: ${existingProjectId}`);
-            }
         } catch (serviceError: any) {
             adminInitializationErrorInstance = new Error(`[AdminServer] Error getting services from existing app: ${serviceError.message}`);
             console.error(adminInitializationErrorInstance.message, serviceError.stack);
-            adminAuthInstance = null;
-            adminDbInstance = null;
         }
     } else {
-        // This case should ideally not be reached if getApps().length > 0
-        adminInitializationErrorInstance = new Error("[AdminServer] getApps() returned content, but the app instance was unexpectedly null/undefined when trying to retrieve existing app.");
+        adminInitializationErrorInstance = new Error("[AdminServer] getApps() returned content, but the app instance was unexpectedly null/undefined.");
         console.error(adminInitializationErrorInstance.message);
     }
 }
 
-// Final status logging
+
+// Final status logging and export
 if (adminInitializationErrorInstance) {
     console.error(`[AdminServer] FINAL STATUS: Initialization FAILED. Error: "${adminInitializationErrorInstance.message}"`);
     adminAppInstance = undefined;
     adminAuthInstance = null;
     adminDbInstance = null;
 } else if (adminAppInstance && adminDbInstance && adminAuthInstance) {
-    const finalProjectId = adminAppInstance.options?.projectId || (adminAppInstance.options.credential as any)?.projectId || (adminAppInstance.options.credential as any)?.getProjectId?.();
-    console.log(`[AdminServer] FINAL STATUS: Successfully initialized/retrieved Firebase Admin SDK. Project ID: ${finalProjectId || 'N/A (Warning: Project ID missing!)'}`);
+    const finalProjectId = adminAppInstance.options?.projectId;
+    console.log(`[AdminServer] FINAL STATUS: Successfully initialized/retrieved Firebase Admin SDK. Project ID: ${finalProjectId || 'N/A'}`);
 } else {
-    const unknownErrorMsg = "[AdminServer] FINAL STATUS: Initialization state UNKNOWN or INCOMPLETE. App or services are not set, but no explicit error was caught. This is unexpected.";
+    const unknownErrorMsg = "[AdminServer] FINAL STATUS: Initialization state UNKNOWN or INCOMPLETE. No explicit error was caught, but instances are not set.";
     console.error(unknownErrorMsg);
     if (!adminInitializationErrorInstance) {
         adminInitializationErrorInstance = new Error(unknownErrorMsg);
