@@ -6,7 +6,7 @@ import type { NextRequest } from 'next/server';
 import { getMinimalSettingsForMiddleware } from '@/services/middleware-settings';
 import type { MinimalSystemSettings } from '@/services/middleware-settings';
 
-const publicRoutes = ['/', '/signin', '/signup', '/about', '/contact']; // Add '/about' and /contact to public routes
+const publicRoutes = ['/', '/signin', '/signup', '/about', '/contact', '/faq']; // Add '/faq' to public routes
 const maintenanceRoute = '/maintenance';
 const adminRoutePrefix = '/admin';
 const dashboardRoute = '/dashboard';
