@@ -122,7 +122,7 @@ export default function LandingPage() {
           <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
             <Link href="/" className="transition-colors hover:text-primary">Home</Link>
             <Link href="/about" className="transition-colors text-muted-foreground hover:text-primary">About</Link>
-            <Link href="#" className="transition-colors text-muted-foreground hover:text-primary">Contact</Link>
+            <Link href="/contact" className="transition-colors text-muted-foreground hover:text-primary">Contact</Link>
             <Link href="#" className="transition-colors text-muted-foreground hover:text-primary">FAQ</Link>
           </nav>
           <nav className="ml-auto flex items-center space-x-2">
