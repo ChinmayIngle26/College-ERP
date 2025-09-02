@@ -64,12 +64,12 @@ export default function AboutPage() {
                 <p className="text-xl text-muted-foreground">Full Stack Developer & AI Enthusiast</p>
                 <div className="flex gap-4 mt-2">
                     <Button asChild variant="outline" size="icon">
-                        <a href="https://github.com/ChinmayIngale" target="_blank" rel="noopener noreferrer" aria-label="GitHub Profile">
+                        <a href="https://github.com/ChinmayIngle" target="_blank" rel="noopener noreferrer" aria-label="GitHub Profile">
                             <Github className="h-5 w-5" />
                         </a>
                     </Button>
                     <Button asChild variant="outline" size="icon">
-                        <a href="https://www.linkedin.com/in/chinmay-ingale-268598212/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn Profile">
+                        <a href="https://www.linkedin.com/in/chinmay-ingle-268598212/" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn Profile">
                             <Linkedin className="h-5 w-5" />
                         </a>
                     </Button>
