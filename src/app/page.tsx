@@ -27,6 +27,7 @@ import { useAuth } from '@/context/auth-context';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { ThemeToggle } from '@/components/layout/theme-toggle';
 
 const featureCards = [
     {
@@ -125,6 +126,7 @@ export default function LandingPage() {
             <Link href="#" className="transition-colors text-muted-foreground hover:text-primary">FAQ</Link>
           </nav>
           <nav className="ml-auto flex items-center space-x-2">
+            <ThemeToggle />
             <Button asChild variant="ghost">
                 <Link href="/signin">Sign In</Link>
             </Button>

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import { Github, Linkedin, Mail } from 'lucide-react';
+import { ThemeToggle } from '@/components/layout/theme-toggle';
 
 export default function AboutPage() {
   return (
@@ -31,6 +32,7 @@ export default function AboutPage() {
             <Link href="#" className="transition-colors text-muted-foreground hover:text-primary">FAQ</Link>
           </nav>
           <nav className="ml-auto flex items-center space-x-2">
+            <ThemeToggle />
             <Button asChild variant="ghost">
                 <Link href="/signin">Sign In</Link>
             </Button>
