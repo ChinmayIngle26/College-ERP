@@ -238,12 +238,13 @@ export async function addStudentToClassroom(idToken: string, classroomId: string
     }
     const studentData = studentSnap.data() as StudentProfile;
 
-    // Auto-assign batch based on studentId format (e.g., "A-001")
+    // Auto-assign batch based on studentId format (e.g., "ET-A-001")
     let assignedBatch: string | undefined = undefined;
-    if (studentData.studentId && studentData.studentId.includes('-')) {
-        const firstChar = studentData.studentId.charAt(0).toUpperCase();
-        if (/[A-Z]/.test(firstChar)) { // Check if it's an alphabet character
-            assignedBatch = firstChar;
+    if (studentData.studentId) {
+        const parts = studentData.studentId.split('-');
+        if (parts.length === 3) {
+            // Assuming format is BRANCH-BATCH-ROLLNO
+            assignedBatch = parts[1].toUpperCase();
         }
     }
 
@@ -623,3 +624,5 @@ export async function getClassmatesInfo(idToken: string, classroomId: string): P
         throw error;
     }
 }
+
+    
