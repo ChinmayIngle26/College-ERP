@@ -58,30 +58,42 @@ export interface StudentProfile {
 
   // Internal/System fields (already present)
   role?: string;
+  parentEmail?: string;
 }
 
 /**
  * Asynchronously retrieves the profile information for a given student UID from Firestore.
- *
- * @param uid The Firebase Authentication User ID (UID).
+ * This is now a SERVER ACTION using the Admin SDK.
+ * @param idToken The Firebase ID token of the authenticated student.
  * @returns A promise that resolves to a StudentProfile object or null if not found/error.
  * @throws Throws an error if Firestore is not initialized or if there's a Firebase error.
  */
-export async function getStudentProfile(uid: string): Promise<StudentProfile | null> {
-
-  if (!db) {
-    console.error("Firestore DB instance is not available.");
-    throw new Error("Database connection error.");
+export async function getStudentProfile(idToken: string): Promise<StudentProfile | null> {
+  if (adminInitializationError) {
+    console.error("[ServerAction:getStudentProfile] Admin SDK init failed:", adminInitializationError.message);
+    throw new Error("Server error: Admin SDK initialization failed.");
+  }
+  if (!adminDb || !adminAuth) {
+    console.error("[ServerAction:getStudentProfile] Admin DB or Auth not initialized.");
+    throw new Error("Server error: Admin services not initialized.");
   }
 
+  let decodedToken;
   try {
-    const userDocRef = doc(db, 'users', uid);
-    const userDocSnap = await getDoc(userDocRef);
+    decodedToken = await adminAuth.verifyIdToken(idToken);
+  } catch (error) {
+    console.error("[ServerAction:getStudentProfile] Invalid ID token:", error);
+    throw new Error("Authentication failed. Invalid or expired token.");
+  }
+  const uid = decodedToken.uid;
+
+  try {
+    const userDocRef = adminDb.collection('users').doc(uid);
+    const userDocSnap = await userDocRef.get();
 
     if (userDocSnap.exists()) {
-      const userData = userDocSnap.data();
+      const userData = userDocSnap.data()!; // Non-null assertion as we checked exists()
       // Construct and return the profile object
-      // For new fields, provide default/mock values if not in Firestore yet
       return {
         studentId: userData.studentId || uid,
         name: userData.name || 'N/A',
@@ -91,7 +103,7 @@ export async function getStudentProfile(uid: string): Promise<StudentProfile | n
         dateOfBirth: userData.dateOfBirth || 'N/A',
         gender: userData.gender || 'N/A',
         contactNumber: userData.contactNumber || 'N/A',
-        email: userData.email, // From existing userData or Firebase Auth user.email
+        email: userData.email,
         permanentAddress: userData.permanentAddress || 'N/A',
         currentAddress: userData.currentAddress || 'N/A',
         bloodGroup: userData.bloodGroup || 'N/A',
@@ -100,7 +112,7 @@ export async function getStudentProfile(uid: string): Promise<StudentProfile | n
 
         // Academic Details
         enrollmentNumber: userData.enrollmentNumber || userData.studentId || uid,
-        courseProgram: userData.major || userData.courseProgram || 'N/A', // Use existing 'major' as 'courseProgram'
+        courseProgram: userData.major || userData.courseProgram || 'N/A',
         department: userData.department || 'N/A',
         currentYear: userData.currentYear || 0,
         currentSemester: userData.currentSemester || 0,
@@ -110,12 +122,12 @@ export async function getStudentProfile(uid: string): Promise<StudentProfile | n
         modeOfAdmission: userData.modeOfAdmission || 'N/A',
         
         // Documents
-        idCardUrl: userData.idCardUrl || '#view-id-card', // Placeholder links
+        idCardUrl: userData.idCardUrl || '#view-id-card',
         admissionLetterUrl: userData.admissionLetterUrl || '#view-admission-letter',
         marksheet10thUrl: userData.marksheet10thUrl || '#view-marksheet-10th',
         marksheet12thUrl: userData.marksheet12thUrl || '#view-marksheet-12th',
         migrationCertificateUrl: userData.migrationCertificateUrl || '#view-migration-cert',
-        bonafideCertificateUrl: userData.bonafideCertificateUrl || '#download-bonafide', // For download button
+        bonafideCertificateUrl: userData.bonafideCertificateUrl || '#download-bonafide',
         uploadedPhotoUrl: userData.uploadedPhotoUrl || 'https://placehold.co/100x100.png',
         uploadedSignatureUrl: userData.uploadedSignatureUrl || 'https://placehold.co/200x80.png',
 
@@ -129,52 +141,14 @@ export async function getStudentProfile(uid: string): Promise<StudentProfile | n
         revaluationRequestLink: userData.revaluationRequestLink || '#request-revaluation',
 
         role: userData.role,
+        parentEmail: userData.parentEmail || 'N/A',
       };
     } else {
       console.warn(`No profile document found for UID: ${uid}`);
-      // Return a default structure if no document, so the page doesn't break
-      return {
-        studentId: uid,
-        name: 'User Data Not Found',
-        profilePhotoUrl: 'https://placehold.co/150x150.png',
-        dateOfBirth: 'N/A',
-        gender: 'N/A',
-        contactNumber: 'N/A',
-        email: 'N/A',
-        permanentAddress: 'N/A',
-        currentAddress: 'N/A',
-        bloodGroup: 'N/A',
-        emergencyContactName: 'N/A',
-        emergencyContactNumber: 'N/A',
-        enrollmentNumber: uid,
-        courseProgram: 'N/A',
-        department: 'N/A',
-        currentYear: 0,
-        currentSemester: 0,
-        academicAdvisorName: 'N/A',
-        sectionOrBatch: 'N/A',
-        admissionDate: 'N/A',
-        modeOfAdmission: 'N/A',
-        idCardUrl: '#',
-        admissionLetterUrl: '#',
-        marksheet10thUrl: '#',
-        marksheet12thUrl: '#',
-        migrationCertificateUrl: '#',
-        bonafideCertificateUrl: '#',
-        uploadedPhotoUrl: 'https://placehold.co/100x100.png',
-        uploadedSignatureUrl: 'https://placehold.co/200x80.png',
-        examRegistrationStatus: 'Not Registered',
-        admitCardUrl: '#',
-        internalExamTimetableUrl: '#',
-        externalExamTimetableUrl: '#',
-        resultsAndGradeCardsUrl: '#',
-        revaluationRequestStatus: 'N/A',
-        revaluationRequestLink: '#',
-        role: 'student',
-      };
+      return null;
     }
   } catch (error) {
-    console.error("Error fetching student profile from Firestore:", error);
+    console.error("Error fetching student profile from Firestore (Admin SDK):", error);
     throw error;
   }
 }

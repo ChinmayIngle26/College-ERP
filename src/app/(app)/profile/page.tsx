@@ -86,7 +86,8 @@ const DocumentOrActionItem = ({
   actionLabel, 
   icon, 
   isDownloadable = false, 
-  actionType = 'link', 
+  actionType = 'link',
+  revalRef
 }: { 
   label: string; 
   url?: string; 
@@ -95,6 +96,7 @@ const DocumentOrActionItem = ({
   icon?: React.ElementType;
   isDownloadable?: boolean;
   actionType?: 'link' | 'button';
+  revalRef?: React.RefObject<HTMLInputElement>;
 }) => {
   const IconComponent = icon;
 
@@ -155,21 +157,16 @@ function ProfileDetailsLoader() {
   
 
   useEffect(() => {
-    if (!authLoading && user && clientAuth.currentUser) { // Added clientAuth.currentUser check
+    if (!authLoading && user && clientAuth.currentUser) {
       const fetchProfileAndClassrooms = async () => {
         setLoading(true);
         setLoadingClassrooms(true);
         setError(null);
         setClassroomsError(null);
-        if (!db) {
-          setError("Database connection is not available.");
-          setLoading(false);
-          setLoadingClassrooms(false);
-          return;
-        }
+
         try {
           const idToken = await clientAuth.currentUser.getIdToken();
-          const fetchedProfile = await getStudentProfile(user.uid);
+          const fetchedProfile = await getStudentProfile(idToken); // Pass token
           setProfile(fetchedProfile);
            if (fetchedProfile) {
             setEditableProfile(fetchedProfile);
@@ -593,6 +590,7 @@ function ProfileDetailsLoader() {
             <DocumentOrActionItem label="Results and Grade Cards" url={profile.resultsAndGradeCardsUrl} fieldName="resultsAndGradeCardsUrl" actionLabel="View Results" icon={Eye} />
             <div className="md:col-span-1"> 
                 <DocumentOrActionItem
+                    revalRef={revalRef}
                     label={`Revaluation (${profile.revaluationRequestStatus || 'N/A'})`}
                     url={profile.revaluationRequestStatus === 'None' && profile.revaluationRequestLink ? profile.revaluationRequestLink : undefined}
                     fieldName="revaluationRequestLink" 
