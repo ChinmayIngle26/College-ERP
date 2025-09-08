@@ -27,6 +27,8 @@ export interface Classroom {
   invitedFacultyIds: string[]; // UIDs of other faculty members allowed to access and manage this classroom
   
   students: ClassroomStudentInfo[]; // Array of student objects with their details and batch
+  
+  studentUids: string[]; // Array of student UIDs for efficient security rule checks
 
   createdAt?: Timestamp | Date; // Optional timestamp, set on creation
 }
@@ -80,4 +82,5 @@ export interface ClassmateInfo {
     studentIdNumber: string;
     batch?: string; // Their batch within the common classroom
 }
+
 

@@ -4,153 +4,139 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // =============================================================
+    // =====================================================================
     // Helper Functions
-    // =============================================================
+    // =====================================================================
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
     function isStudent() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
     }
 
     function isFaculty() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'faculty';
+      return isSignedIn() && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'faculty';
     }
-
+    
     function isAdmin() {
-      let userRole = get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
-      return request.auth.token.email == 'admin@gmail.com' || userRole == 'admin';
+      return isSignedIn() && (
+        request.auth.token.email == 'admin@gmail.com' ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'
+      );
     }
     
-    function isOwner(userId) {
-      return request.auth.uid == userId;
-    }
-    
-    function isSignedIn() {
-        return request.auth != null;
+    function isOwner(classroomId) {
+      return get(/databases/$(database)/documents/classrooms/$(classroomId)).data.ownerFacultyId == request.auth.uid;
     }
 
-    // =============================================================
-    // Collection Rules
-    // =============================================================
+    function isInvited(classroomId, facultyId) {
+      return facultyId in get(/databases/$(database)/documents/classrooms/$(classroomId)).data.invitedFacultyIds;
+    }
 
-    // Users Collection
-    // ----------------
+    function isEnrolled(classroomId, studentId) {
+        return studentId in get(/databases/$(database)/documents/classrooms/$(classroomId)).data.studentUids;
+    }
+
+    // =====================================================================
+    // Collection: users
+    // =====================================================================
     match /users/{userId} {
-      // READ: 
-      // - Admins and Faculty can read any user's profile.
-      // - Students can read their own profile.
-      allow read: if isSignedIn() && (isAdmin() || isFaculty() || isOwner(userId));
+      // Admins can manage any user profile
+      allow read, write, create, delete: if isAdmin();
       
-      // CREATE: 
-      // - Admins can create user documents (e.g., pre-registering a user).
-      // - New users can create their own document during signup.
-      allow create: if isSignedIn() && (isAdmin() || isOwner(userId));
+      // Users can read their own profile
+      allow get: if isSignedIn() && request.auth.uid == userId;
       
-      // UPDATE:
-      // - Admins can update any user profile.
-      // - Users can update THEIR OWN profile.
-      allow update: if isSignedIn() && (isAdmin() || isOwner(userId));
+      // Users can update their own profile (for non-sensitive fields)
+      // Note: Sensitive fields are handled by profileChangeRequests
+      allow update: if isSignedIn() && request.auth.uid == userId;
 
-      // DELETE:
-      // - Only Admins can delete user profiles.
-      allow delete: if isSignedIn() && isAdmin();
+      // Allow pre-signup check for studentId uniqueness
+      allow list: if request.auth == null;
     }
 
-    // Classrooms Collection
-    // ---------------------
+    // =====================================================================
+    // Collection: classrooms
+    // =====================================================================
     match /classrooms/{classroomId} {
-      // READ: 
-      // - Admins and Faculty can read any classroom details.
-      // - Students can read details of classrooms they are enrolled in.
-      allow read: if isSignedIn() && (isAdmin() || isFaculty() || resource.data.students.exists(s, s.userId == request.auth.uid));
+        // Create: Only authenticated faculty can create classrooms
+        allow create: if isFaculty();
 
-      // CREATE: 
-      // - Only Faculty and Admins can create new classrooms.
-      allow create: if isSignedIn() && (isFaculty() || isAdmin());
-      
-      // UPDATE:
-      // - Only Admins and authorized Faculty (owner or invited) can update classroom details.
-      allow update: if isSignedIn() && (isAdmin() || (isFaculty() && (resource.data.ownerFacultyId == request.auth.uid || request.auth.uid in resource.data.invitedFacultyIds)));
-      
-      // DELETE:
-      // - Only the owner Faculty or an Admin can delete a classroom.
-      allow delete: if isSignedIn() && (isAdmin() || (isFaculty() && resource.data.ownerFacultyId == request.auth.uid));
+        // Read: Admins, the owner, invited faculty, and enrolled students can read
+        allow get: if isSignedIn() && (isAdmin() || isOwner(classroomId) || isInvited(classroomId, request.auth.uid) || isEnrolled(classroomId, request.auth.uid));
+        allow list: if isFaculty();
 
-      // Messages Subcollection
-      match /messages/{messageId} {
-        // READ: 
-        // - Allow read if user is an Admin, a Faculty, or an enrolled student.
-        allow read: if isSignedIn() && (isAdmin() || isFaculty() || get(/databases/$(database)/documents/classrooms/$(classroomId)).data.students.exists(s, s.userId == request.auth.uid));
+        // Update: Admins, owner, or invited faculty can update
+        allow update: if isFaculty() && (isAdmin() || isOwner(classroomId) || isInvited(classroomId, request.auth.uid));
 
-        // CREATE:
-        // - Allow message creation if user is an Admin, a Faculty, or an enrolled student.
-        allow create: if isSignedIn() && (isAdmin() || isFaculty() || get(/databases/$(database)/documents/classrooms/$(classroomId)).data.students.exists(s, s.userId == request.auth.uid));
-        
-        // No updates or deletes for chat messages to maintain history.
-        allow update, delete: if false;
-      }
+        // Delete: Only the owner or an admin can delete
+        allow delete: if isAdmin() || isOwner(classroomId);
+
+        // --- Subcollection: messages ---
+        match /messages/{messageId} {
+            // Read: Admins, owner, invited faculty, and enrolled students can read messages
+            allow list, get: if isSignedIn() && (isAdmin() || isOwner(classroomId) || isInvited(classroomId, request.auth.uid) || isEnrolled(classroomId, request.auth.uid));
+            
+            // Create: Owner, invited faculty, and enrolled students can send messages
+            allow create: if isSignedIn() && (isOwner(classroomId) || isInvited(classroomId, request.auth.uid) || isEnrolled(classroomId, request.auth.uid));
+
+            // Update/Delete: Only the message sender or an admin can delete/edit their message
+            allow update, delete: if isSignedIn() && (isAdmin() || resource.data.senderId == request.auth.uid);
+        }
     }
 
-    // Grades Collection
-    // -----------------
-    match /grades/{gradeId} {
-        // READ:
-        // - Students can read their own grades.
-        // - Faculty and Admins can read any grades.
-        allow read: if isSignedIn() && (isOwner(resource.data.studentId) || isFaculty() || isAdmin());
-
-        // CREATE, UPDATE:
-        // - Only Faculty and Admins can create or update grades.
-        allow create, update: if isSignedIn() && (isFaculty() || isAdmin());
-
-        // DELETE:
-        // - Only Faculty and Admins can delete grades.
-        allow delete: if isSignedIn() && (isFaculty() || isAdmin());
-    }
-
-    // Lecture Attendance Collection
-    // -----------------------------
-    match /lectureAttendance/{attendanceId} {
-        // READ:
-        // - Students can read their own attendance records.
-        // - Faculty and Admins can read any records.
-        allow read: if isSignedIn() && (isOwner(resource.data.studentId) || isFaculty() || isAdmin());
-        
-        // CREATE, UPDATE, DELETE:
-        // - Only Faculty and Admins can manage attendance records.
-        allow create, update, delete: if isSignedIn() && (isFaculty() || isAdmin());
-    }
-
-    // Profile Change Requests Collection
-    // ----------------------------------
+    // =====================================================================
+    // Collection: profileChangeRequests
+    // =====================================================================
     match /profileChangeRequests/{requestId} {
-        // READ: 
-        // - Admins can read all requests.
-        // - Students can read their own requests.
-        allow read: if isSignedIn() && (isAdmin() || isOwner(resource.data.userId));
+        // Create: Any signed-in user can create a request for themselves
+        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+
+        // Read: Admins can read all requests. Users can read their own.
+        allow list, get: if isAdmin() || (isSignedIn() && get(/databases/$(database)/documents/profileChangeRequests/$(requestId)).data.userId == request.auth.uid);
         
-        // CREATE:
-        // - Students can create requests for themselves.
-        allow create: if isSignedIn() && isStudent();
-        
-        // UPDATE:
-        // - Only Admins can update requests (to approve/deny them).
-        allow update: if isSignedIn() && isAdmin();
-        
-        // DELETE:
-        // - Deny all deletes to keep a history of requests.
+        // Update: Only admins can update (approve/deny) a request
+        allow update: if isAdmin();
+
+        // Delete: Nobody can delete requests to maintain a history log.
         allow delete: if false;
     }
 
-    // System Settings Collection
-    // --------------------------
-    match /systemSettings/{configId} {
-        // READ:
-        // - Allow anyone to read system settings (e.g., for maintenance mode check, app name).
-        allow read: if true;
+    // =====================================================================
+    // Collection: grades
+    // =====================================================================
+    match /grades/{gradeId} {
+        // Create/Update: Faculty and admins can create/update grades
+        allow create, update: if isFaculty() || isAdmin();
+
+        // Read: Admins and faculty can read all grades. Students can only read their own.
+        allow list, get: if isAdmin() || isFaculty() || (isStudent() && get(/databases/$(database)/documents/grades/$(gradeId)).data.studentId == request.auth.uid);
         
-        // WRITE:
-        // - Only Admins can change system settings.
-        allow write: if isSignedIn() && isAdmin();
+        // Delete: Faculty and admins can delete grades
+        allow delete: if isFaculty() || isAdmin();
+    }
+
+    // =====================================================================
+    // Collection: lectureAttendance
+    // =====================================================================
+    match /lectureAttendance/{attendanceId} {
+        // Create/Update: Faculty and admins can manage attendance records
+        allow create, update, delete: if isFaculty() || isAdmin();
+
+        // Read: Admins/Faculty can read all. Students can read their own.
+        allow list, get: if isAdmin() || isFaculty() || (isStudent() && get(/databases/$(database)/documents/lectureAttendance/$(attendanceId)).data.studentId == request.auth.uid);
+    }
+    
+    // =====================================================================
+    // Collection: systemSettings
+    // =====================================================================
+    match /systemSettings/appConfiguration {
+      // Read: Anyone can read system settings (e.g., app name, maintenance mode).
+      allow get: if true;
+      
+      // Write: Only admins can change system settings.
+      allow write: if isAdmin();
     }
   }
 }

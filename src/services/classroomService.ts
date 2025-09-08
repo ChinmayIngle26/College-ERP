@@ -63,6 +63,7 @@ export async function createClassroom(idToken: string, name: string, subject: st
       ownerFacultyId,
       invitedFacultyIds: [],
       students: [], // Initialize with an empty array of student objects
+      studentUids: [], // Initialize with an empty array of student UIDs for rules
       createdAt: serverTimestampForCreate, 
     });
     console.log(`[classroomService:createClassroom SA] Classroom created successfully with ID: ${docRef.id} using Admin SDK.`);
@@ -119,6 +120,7 @@ export async function getClassroomsByFaculty(idToken: string): Promise<Classroom
                         email: s.email,
                         batch: s.batch,
                     })),
+                    studentUids: data.studentUids || [], // Include studentUids
                     createdAt: createdAtAdmin?.toDate() 
                 } as Classroom);
             }
@@ -262,7 +264,8 @@ export async function addStudentToClassroom(idToken: string, classroomId: string
     const classroomDocRef = adminDb.collection('classrooms').doc(classroomId);
     try {
         await classroomDocRef.update({
-            students: AdminFieldValue.arrayUnion(studentToAdd)
+            students: AdminFieldValue.arrayUnion(studentToAdd),
+            studentUids: AdminFieldValue.arrayUnion(studentUid) // Also update the studentUids array
         });
     } catch (error) {
         console.error("Error adding student to classroom:", error);
@@ -300,7 +303,10 @@ export async function removeStudentFromClassroom(idToken: string, classroomId: s
         const currentClassroomData = currentClassroomSnap.data() as Classroom;
         const updatedStudents = (currentClassroomData.students || []).filter(s => s.userId !== studentUserId);
         
-        await classroomDocRef.update({ students: updatedStudents });
+        await classroomDocRef.update({ 
+            students: updatedStudents,
+            studentUids: AdminFieldValue.arrayRemove(studentUserId) // Also remove from studentUids
+        });
     } catch (error) {
         console.error("Error removing student from classroom:", error);
         throw error;
@@ -330,7 +336,7 @@ export async function searchStudents(idToken: string, classroomId: string, searc
         if (!permCheck.permitted || !permCheck.classroomData) {
             throw new Error("Permission denied or classroom data not found.");
         }
-        studentsCurrentlyInClassroom = (permCheck.classroomData.students || []).map(s => s.userId);
+        studentsCurrentlyInClassroom = (permCheck.classroomData.studentUids || []);
     }
 
     try {
@@ -535,7 +541,8 @@ export async function getStudentClassroomsWithBatchInfo(idToken: string): Promis
 
     const enrolledClassrooms: StudentClassroomEnrollmentInfo[] = [];
     try {
-        const classroomsSnapshot = await adminDb.collection('classrooms').get();
+        // More efficient query using the studentUids array
+        const classroomsSnapshot = await adminDb.collection('classrooms').where('studentUids', 'array-contains', studentUid).get();
         if (classroomsSnapshot.empty) {
             return [];
         }
@@ -600,7 +607,7 @@ export async function getClassmatesInfo(idToken: string, classroomId: string): P
         const studentsInClassroom = classroomData.students || [];
 
         // Verify the requesting student is part of this classroom
-        const requestingStudentEntry = studentsInClassroom.find(s => s.userId === studentUid);
+        const requestingStudentEntry = (classroomData.studentUids || []).includes(studentUid);
         if (!requestingStudentEntry) {
             console.warn(`[classroomService:getClassmatesInfo SA] Student ${studentUid} not found in classroom ${classroomId}. Denying access to classmates list.`);
             throw new Error("Access denied: You are not enrolled in this classroom.");
@@ -624,5 +631,3 @@ export async function getClassmatesInfo(idToken: string, classroomId: string): P
         throw error;
     }
 }
-
-    
