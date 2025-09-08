@@ -1,6 +1,9 @@
 
-import { doc, getDoc } from 'firebase/firestore';
+'use server';
+
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
+import { adminDb, adminAuth, adminInitializationError } from '@/lib/firebase/admin.server';
 
 /**
  * Represents a student's profile information.
@@ -173,5 +176,53 @@ export async function getStudentProfile(uid: string): Promise<StudentProfile | n
   } catch (error) {
     console.error("Error fetching student profile from Firestore:", error);
     throw error;
+  }
+}
+
+
+/**
+ * Updates a student's profile in Firestore.
+ * This is a Server Action called from the client-side profile page.
+ * @param idToken The Firebase ID token of the authenticated user.
+ * @param profileData A partial object of the StudentProfile to update.
+ */
+export async function updateStudentProfile(
+  idToken: string,
+  profileData: Partial<StudentProfile>
+): Promise<void> {
+  if (adminInitializationError) {
+    console.error("[ServerAction:updateStudentProfile] Admin SDK init failed:", adminInitializationError.message);
+    throw new Error("Server error: Admin SDK initialization failed.");
+  }
+  if (!adminDb || !adminAuth) {
+    console.error("[ServerAction:updateStudentProfile] Admin DB or Auth not initialized.");
+    throw new Error("Server error: Admin services not initialized.");
+  }
+
+  let decodedToken;
+  try {
+    decodedToken = await adminAuth.verifyIdToken(idToken);
+  } catch (error) {
+    console.error("[ServerAction:updateStudentProfile] Invalid ID token:", error);
+    throw new Error("Authentication failed. Invalid or expired token.");
+  }
+
+  const userId = decodedToken.uid;
+  const userDocRef = adminDb.collection('users').doc(userId);
+
+  // Sanitize data: remove fields that should not be directly updated by the user
+  const sanitizedData = { ...profileData };
+  delete sanitizedData.role;
+  delete sanitizedData.email;
+  delete sanitizedData.name;
+  delete sanitizedData.studentId;
+  // Add any other fields that should be protected and only changed via admin request
+
+  try {
+    await userDocRef.update(sanitizedData);
+    console.log(`[ServerAction:updateStudentProfile] Profile updated successfully for UID: ${userId}`);
+  } catch (error) {
+    console.error(`[ServerAction:updateStudentProfile] Error updating profile for UID ${userId}:`, error);
+    throw new Error("Could not update your profile. Please try again.");
   }
 }
