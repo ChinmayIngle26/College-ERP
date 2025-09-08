@@ -91,8 +91,8 @@ export async function getStudentProfile(idToken: string): Promise<StudentProfile
     const userDocRef = adminDb.collection('users').doc(uid);
     const userDocSnap = await userDocRef.get();
 
-    if (userDocSnap.exists()) {
-      const userData = userDocSnap.data()!; // Non-null assertion as we checked exists()
+    if (userDocSnap.exists) {
+      const userData = userDocSnap.data()!; // Non-null assertion as we checked exists
       // Construct and return the profile object
       return {
         studentId: userData.studentId || uid,
