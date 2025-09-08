@@ -22,6 +22,132 @@ import { Download, Eye, UserSquare, BookOpen, FileText, FileImage, ClipboardList
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
+// Helper component moved outside ProfileDetailsLoader to prevent re-creation on render
+const InfoItem = ({
+  label,
+  value,
+  fieldName,
+  isEditable,
+  isEditMode,
+  onEditRequest,
+  editModeRender,
+  handleInputChange,
+  editableProfileValue,
+  profileValue
+}: {
+  label: string;
+  value?: string | number | null;
+  fieldName: keyof StudentProfile;
+  isEditable?: boolean;
+  isEditMode: boolean;
+  onEditRequest?: (fieldName: keyof StudentProfile, label: string) => void;
+  editModeRender?: (
+    currentValue: any,
+    handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void,
+    fieldName: keyof StudentProfile
+  ) => JSX.Element;
+  handleInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  editableProfileValue: any;
+  profileValue: any;
+}) => (
+  <div className="mb-2">
+    <Label htmlFor={fieldName} className="font-semibold text-muted-foreground">{label}:</Label>
+    {isEditMode && isEditable ? (
+      editModeRender ? (
+        editModeRender(editableProfileValue, handleInputChange, fieldName)
+      ) : (
+        <Input
+          id={fieldName}
+          name={fieldName}
+          className="mt-1"
+          value={String(editableProfileValue ?? '')}
+          onChange={handleInputChange}
+          type={typeof profileValue === 'number' ? 'number' : 'text'}
+        />
+      )
+    ) : isEditMode && onEditRequest ? (
+      <div className="flex items-center gap-2 mt-1">
+        <span className="text-foreground break-all">{value || 'N/A'}</span>
+        <Button variant="outline" size="sm" onClick={() => onEditRequest(fieldName, label)} className="whitespace-nowrap">
+          <Send className="mr-2 h-3 w-3" /> Request Change
+        </Button>
+      </div>
+    ) : (
+      <span className="ml-2 text-foreground break-all">{value || 'N/A'}</span>
+    )}
+  </div>
+);
+  
+// Helper component moved outside ProfileDetailsLoader to prevent re-creation on render
+const DocumentOrActionItem = ({ 
+  label, 
+  url, 
+  fieldName, 
+  actionLabel, 
+  icon, 
+  isDownloadable = false, 
+  actionType = 'link', 
+  uploadable = false,
+  onFileSelected, 
+  acceptFileType,
+  isEditMode,
+  itemFileInputRef
+}: { 
+  label: string; 
+  url?: string; 
+  fieldName: keyof StudentProfile; 
+  actionLabel?: string; 
+  icon?: React.ElementType;
+  isDownloadable?: boolean;
+  actionType?: 'link' | 'button';
+  uploadable?: boolean;
+  onFileSelected?: (event: React.ChangeEvent<HTMLInputElement>, fieldName: keyof StudentProfile, label: string) => void;
+  acceptFileType?: string;
+  isEditMode: boolean;
+  itemFileInputRef: React.RefObject<HTMLInputElement>;
+}) => {
+  const IconComponent = icon;
+
+  return (
+      <div className="mb-3 flex flex-col items-start gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center">
+          {IconComponent && <IconComponent className="mr-2 h-4 w-4 text-muted-foreground" />}
+          <span className="text-sm font-medium text-foreground">{label}</span>
+        </div>
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
+          {isEditMode && uploadable && onFileSelected && (
+              <>
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => itemFileInputRef.current?.click()}>
+                      <UploadCloud className="mr-2 h-4 w-4" /> Upload New
+                  </Button>
+                  <Input
+                      type="file"
+                      ref={itemFileInputRef}
+                      className="hidden"
+                      accept={acceptFileType || "image/*,application/pdf"}
+                      onChange={(e) => onFileSelected(e, fieldName, label)}
+                  />
+              </>
+          )}
+          {url && url !== '#' ? (
+              <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
+              <a href={url} download={isDownloadable} target="_blank" rel="noopener noreferrer">
+                  {isDownloadable ? <Download className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />} {actionLabel || (isDownloadable ? 'Download' : 'View')}
+              </a>
+              </Button>
+          ) : actionType === 'button' && actionLabel ? (
+              <Button variant="outline" size="sm" className="w-full sm:w-auto">
+              {IconComponent && <IconComponent className="mr-2 h-4 w-4" />} {actionLabel}
+              </Button>
+          ): (
+              !isEditMode && !uploadable && <span className="text-sm text-muted-foreground">{actionLabel || 'Not Available'}</span>
+          )}
+        </div>
+      </div>
+  );
+};
+
+
 function ProfileDetailsLoader() {
   const { user, loading: authLoading } = useAuth(); 
   const [profile, setProfile] = useState<StudentProfile | null>(null);
@@ -39,6 +165,29 @@ function ProfileDetailsLoader() {
   const profilePhotoInputRef = useRef<HTMLInputElement>(null);
   const uploadedPhotoInputRef = useRef<HTMLInputElement>(null);
   const uploadedSignatureInputRef = useRef<HTMLInputElement>(null);
+  const idCardRef = useRef<HTMLInputElement>(null);
+  const admissionLetterRef = useRef<HTMLInputElement>(null);
+  const marksheet10thRef = useRef<HTMLInputElement>(null);
+  const marksheet12thRef = useRef<HTMLInputElement>(null);
+  const migrationCertRef = useRef<HTMLInputElement>(null);
+  const bonafideCertRef = useRef<HTMLInputElement>(null);
+  const admitCardRef = useRef<HTMLInputElement>(null);
+  const internalTimetableRef = useRef<HTMLInputElement>(null);
+  const externalTimetableRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLInputElement>(null);
+
+  const fileInputRefs = {
+    idCardUrl: idCardRef,
+    admissionLetterUrl: admissionLetterRef,
+    marksheet10thUrl: marksheet10thRef,
+    marksheet12thUrl: marksheet12thRef,
+    migrationCertificateUrl: migrationCertRef,
+    bonafideCertificateUrl: bonafideCertRef,
+    admitCardUrl: admitCardRef,
+    internalExamTimetableUrl: internalTimetableRef,
+    externalExamTimetableUrl: externalTimetableRef,
+    resultsAndGradeCardsUrl: resultsRef,
+  };
 
   const [enrolledClassrooms, setEnrolledClassrooms] = useState<StudentClassroomEnrollmentInfo[]>([]);
   const [loadingClassrooms, setLoadingClassrooms] = useState(true);
@@ -233,119 +382,6 @@ function ProfileDetailsLoader() {
      return <p className="text-center text-muted-foreground">Profile not available.</p>;
    }
 
-  const InfoItem = ({
-    label,
-    value,
-    fieldName,
-    isEditable,
-    onEditRequest,
-    editModeRender,
-  }: {
-    label: string;
-    value?: string | number | null;
-    fieldName: keyof StudentProfile;
-    isEditable?: boolean;
-    onEditRequest?: (fieldName: keyof StudentProfile, label: string) => void;
-    editModeRender?: (
-      currentValue: any,
-      handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void,
-      fieldName: keyof StudentProfile
-    ) => JSX.Element;
-  }) => (
-    <div className="mb-2">
-      <Label htmlFor={fieldName} className="font-semibold text-muted-foreground">{label}:</Label>
-      {isEditMode && isEditable ? (
-        editModeRender ? (
-          editModeRender(editableProfile[fieldName], handleInputChange, fieldName)
-        ) : (
-          <Input
-            id={fieldName}
-            name={fieldName}
-            className="mt-1"
-            value={String(editableProfile[fieldName] ?? '')}
-            onChange={handleInputChange}
-            type={typeof profile[fieldName] === 'number' ? 'number' : 'text'}
-          />
-        )
-      ) : isEditMode && onEditRequest ? (
-        <div className="flex items-center gap-2 mt-1">
-          <span className="text-foreground break-all">{value || 'N/A'}</span>
-          <Button variant="outline" size="sm" onClick={() => onEditRequest(fieldName, label)} className="whitespace-nowrap">
-            <Send className="mr-2 h-3 w-3" /> Request Change
-          </Button>
-        </div>
-      ) : (
-        <span className="ml-2 text-foreground break-all">{value || 'N/A'}</span>
-      )}
-    </div>
-  );
-  
-  const DocumentOrActionItem = ({ 
-    label, 
-    url, 
-    fieldName, 
-    actionLabel, 
-    icon, 
-    isDownloadable = false, 
-    actionType = 'link', 
-    uploadable = false,
-    onFileSelected, 
-    acceptFileType 
-  }: { 
-    label: string; 
-    url?: string; 
-    fieldName: keyof StudentProfile; 
-    actionLabel?: string; 
-    icon?: React.ElementType;
-    isDownloadable?: boolean;
-    actionType?: 'link' | 'button';
-    uploadable?: boolean;
-    onFileSelected?: (event: React.ChangeEvent<HTMLInputElement>, fieldName: keyof StudentProfile, label: string) => void;
-    acceptFileType?: string;
-  }) => {
-    const IconComponent = icon;
-    const itemFileInputRef = useRef<HTMLInputElement>(null);
-
-    return (
-        <div className="mb-3 flex flex-col items-start gap-2 rounded-md border p-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center">
-            {IconComponent && <IconComponent className="mr-2 h-4 w-4 text-muted-foreground" />}
-            <span className="text-sm font-medium text-foreground">{label}</span>
-          </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-            {isEditMode && uploadable && onFileSelected && (
-                <>
-                    <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => itemFileInputRef.current?.click()}>
-                        <UploadCloud className="mr-2 h-4 w-4" /> Upload New
-                    </Button>
-                    <Input
-                        type="file"
-                        ref={itemFileInputRef}
-                        className="hidden"
-                        accept={acceptFileType || "image/*,application/pdf"}
-                        onChange={(e) => onFileSelected(e, fieldName, label)}
-                    />
-                </>
-            )}
-            {url && url !== '#' ? (
-                <Button variant="outline" size="sm" asChild className="w-full sm:w-auto">
-                <a href={url} download={isDownloadable} target="_blank" rel="noopener noreferrer">
-                    {isDownloadable ? <Download className="mr-2 h-4 w-4" /> : <Eye className="mr-2 h-4 w-4" />} {actionLabel || (isDownloadable ? 'Download' : 'View')}
-                </a>
-                </Button>
-            ) : actionType === 'button' && actionLabel ? (
-                <Button variant="outline" size="sm" className="w-full sm:w-auto">
-                {IconComponent && <IconComponent className="mr-2 h-4 w-4" />} {actionLabel}
-                </Button>
-            ): (
-                !isEditMode && !uploadable && <span className="text-sm text-muted-foreground">{actionLabel || 'Not Available'}</span>
-            )}
-          </div>
-        </div>
-    );
-  };
-
-
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
@@ -397,16 +433,20 @@ function ProfileDetailsLoader() {
             <p className="text-sm text-muted-foreground break-all">{profile.email}</p>
           </div>
           <div className="md:col-span-2 space-y-1">
-            <InfoItem label="Full Name" value={profile.name} fieldName="name" onEditRequest={openRequestModal}/>
+            <InfoItem label="Full Name" value={profile.name} fieldName="name" onEditRequest={openRequestModal} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.name} profileValue={profile.name}/>
             <InfoItem
                 label="Date of Birth"
                 value={profile.dateOfBirth}
                 fieldName="dateOfBirth"
                 isEditable={true}
+                isEditMode={isEditMode}
+                handleInputChange={handleInputChange}
+                editableProfileValue={editableProfile.dateOfBirth}
+                profileValue={profile.dateOfBirth}
                 editModeRender={(currentValue, handleChange, name) => (
                     <Input
-                    id={name}
-                    name={name}
+                    id={name as string}
+                    name={name as string}
                     type="date"
                     className="mt-1"
                     value={currentValue || ''}
@@ -419,10 +459,14 @@ function ProfileDetailsLoader() {
                 value={profile.gender}
                 fieldName="gender"
                 isEditable={true}
+                isEditMode={isEditMode}
+                handleInputChange={handleInputChange}
+                editableProfileValue={editableProfile.gender}
+                profileValue={profile.gender}
                 editModeRender={(currentValue, handleChange, name) => (
                     <select
-                    id={name}
-                    name={name}
+                    id={name as string}
+                    name={name as string}
                     value={currentValue || ''}
                     onChange={handleChange}
                     className="input-class mt-1 block w-full rounded-md border-input bg-background p-2 text-sm shadow-sm focus:border-primary focus:ring focus:ring-primary focus:ring-opacity-50 h-10"
@@ -434,19 +478,23 @@ function ProfileDetailsLoader() {
                     </select>
                 )}
             />
-            <InfoItem label="Contact Number" value={profile.contactNumber} fieldName="contactNumber" isEditable={true} 
+            <InfoItem label="Contact Number" value={profile.contactNumber} fieldName="contactNumber" isEditable={true} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.contactNumber} profileValue={profile.contactNumber}
               editModeRender={(currentValue, handleChange, name) => (
-                <Input id={name} name={name} type="tel" className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="+1234567890"/>
+                <Input id={name as string} name={name as string} type="tel" className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="+1234567890"/>
               )}
             />
-            <InfoItem label="Email Address" value={profile.email} fieldName="email" onEditRequest={openRequestModal} />
+            <InfoItem label="Email Address" value={profile.email} fieldName="email" onEditRequest={openRequestModal} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.email} profileValue={profile.email}/>
             <InfoItem 
                 label="Permanent Address" 
                 value={profile.permanentAddress} 
                 fieldName="permanentAddress" 
                 isEditable={true} 
+                isEditMode={isEditMode}
+                handleInputChange={handleInputChange}
+                editableProfileValue={editableProfile.permanentAddress}
+                profileValue={profile.permanentAddress}
                 editModeRender={(currentValue, handleChange, name) => (
-                    <Textarea id={name} name={name} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="123 Main St, City, Country"/>
+                    <Textarea id={name as string} name={name as string} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="123 Main St, City, Country"/>
                 )}
             />
             <InfoItem 
@@ -454,23 +502,27 @@ function ProfileDetailsLoader() {
                 value={profile.currentAddress} 
                 fieldName="currentAddress" 
                 isEditable={true} 
+                isEditMode={isEditMode}
+                handleInputChange={handleInputChange}
+                editableProfileValue={editableProfile.currentAddress}
+                profileValue={profile.currentAddress}
                 editModeRender={(currentValue, handleChange, name) => (
-                    <Textarea id={name} name={name} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="Apt 4B, Complex, City"/>
+                    <Textarea id={name as string} name={name as string} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="Apt 4B, Complex, City"/>
                 )}
             />
-            <InfoItem label="Blood Group" value={profile.bloodGroup} fieldName="bloodGroup" isEditable={true} 
+            <InfoItem label="Blood Group" value={profile.bloodGroup} fieldName="bloodGroup" isEditable={true} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.bloodGroup} profileValue={profile.bloodGroup}
               editModeRender={(currentValue, handleChange, name) => (
-                <Input id={name} name={name} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="O+"/>
+                <Input id={name as string} name={name as string} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="O+"/>
               )}
             />
-            <InfoItem label="Emergency Contact Name" value={profile.emergencyContactName} fieldName="emergencyContactName" isEditable={true} 
+            <InfoItem label="Emergency Contact Name" value={profile.emergencyContactName} fieldName="emergencyContactName" isEditable={true} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.emergencyContactName} profileValue={profile.emergencyContactName}
               editModeRender={(currentValue, handleChange, name) => (
-                <Input id={name} name={name} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="Jane Doe"/>
+                <Input id={name as string} name={name as string} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="Jane Doe"/>
               )}
             />
-            <InfoItem label="Emergency Contact Number" value={profile.emergencyContactNumber} fieldName="emergencyContactNumber" isEditable={true} 
+            <InfoItem label="Emergency Contact Number" value={profile.emergencyContactNumber} fieldName="emergencyContactNumber" isEditable={true} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.emergencyContactNumber} profileValue={profile.emergencyContactNumber}
               editModeRender={(currentValue, handleChange, name) => (
-                <Input id={name} name={name} type="tel" className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="+0987654321"/>
+                <Input id={name as string} name={name as string} type="tel" className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="+0987654321"/>
               )}
             />
           </div>
@@ -526,25 +578,25 @@ function ProfileDetailsLoader() {
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-x-6 gap-y-1 md:grid-cols-2">
-          <InfoItem label="Enrollment Number / Roll Number" value={profile.enrollmentNumber} fieldName="enrollmentNumber" onEditRequest={openRequestModal}/>
-          <InfoItem label="Course / Program" value={profile.courseProgram} fieldName="courseProgram" onEditRequest={openRequestModal}/>
-          <InfoItem label="Department" value={profile.department} fieldName="department" onEditRequest={openRequestModal}/>
-          <InfoItem label="Current Year" value={profile.currentYear ? `Year ${profile.currentYear}` : 'N/A'} fieldName="currentYear" onEditRequest={openRequestModal} />
-          <InfoItem label="Current Semester" value={profile.currentSemester ? `Semester ${profile.currentSemester}` : 'N/A'} fieldName="currentSemester" onEditRequest={openRequestModal}/>
-          <InfoItem label="Academic Advisor" value={profile.academicAdvisorName} fieldName="academicAdvisorName" isEditable={true}
+          <InfoItem label="Enrollment Number / Roll Number" value={profile.enrollmentNumber} fieldName="enrollmentNumber" onEditRequest={openRequestModal} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.enrollmentNumber} profileValue={profile.enrollmentNumber}/>
+          <InfoItem label="Course / Program" value={profile.courseProgram} fieldName="courseProgram" onEditRequest={openRequestModal} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.courseProgram} profileValue={profile.courseProgram}/>
+          <InfoItem label="Department" value={profile.department} fieldName="department" onEditRequest={openRequestModal} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.department} profileValue={profile.department}/>
+          <InfoItem label="Current Year" value={profile.currentYear ? `Year ${profile.currentYear}` : 'N/A'} fieldName="currentYear" onEditRequest={openRequestModal} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.currentYear} profileValue={profile.currentYear}/>
+          <InfoItem label="Current Semester" value={profile.currentSemester ? `Semester ${profile.currentSemester}` : 'N/A'} fieldName="currentSemester" onEditRequest={openRequestModal} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.currentSemester} profileValue={profile.currentSemester}/>
+          <InfoItem label="Academic Advisor" value={profile.academicAdvisorName} fieldName="academicAdvisorName" isEditable={true} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.academicAdvisorName} profileValue={profile.academicAdvisorName}
             editModeRender={(currentValue, handleChange, name) => (
-                <Input id={name} name={name} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="Dr. Smith"/>
+                <Input id={name as string} name={name as string} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="Dr. Smith"/>
             )}
           />
-          <InfoItem label="Section / Batch (Overall)" value={profile.sectionOrBatch} fieldName="sectionOrBatch" isEditable={true}
+          <InfoItem label="Section / Batch (Overall)" value={profile.sectionOrBatch} fieldName="sectionOrBatch" isEditable={true} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.sectionOrBatch} profileValue={profile.sectionOrBatch}
              editModeRender={(currentValue, handleChange, name) => (
-                <Input id={name} name={name} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="A1"/>
+                <Input id={name as string} name={name as string} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="A1"/>
             )}
           />
-          <InfoItem label="Admission Date" value={profile.admissionDate} fieldName="admissionDate" onEditRequest={openRequestModal}/>
-          <InfoItem label="Mode of Admission" value={profile.modeOfAdmission} fieldName="modeOfAdmission" isEditable={true}
+          <InfoItem label="Admission Date" value={profile.admissionDate} fieldName="admissionDate" onEditRequest={openRequestModal} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.admissionDate} profileValue={profile.admissionDate}/>
+          <InfoItem label="Mode of Admission" value={profile.modeOfAdmission} fieldName="modeOfAdmission" isEditable={true} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.modeOfAdmission} profileValue={profile.modeOfAdmission}
              editModeRender={(currentValue, handleChange, name) => (
-                <Input id={name} name={name} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="CET"/>
+                <Input id={name as string} name={name as string} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="CET"/>
             )}
           />
         </CardContent>
@@ -559,12 +611,12 @@ function ProfileDetailsLoader() {
         </CardHeader>
         <CardContent>
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <DocumentOrActionItem label="ID Card" url={profile.idCardUrl} fieldName="idCardUrl" actionLabel="View ID Card" uploadable={true} onFileSelected={handleFileSelect} acceptFileType="image/*,application/pdf" />
-                <DocumentOrActionItem label="Admission Letter" url={profile.admissionLetterUrl} fieldName="admissionLetterUrl" actionLabel="View Admission Letter" uploadable={true} onFileSelected={handleFileSelect} acceptFileType="image/*,application/pdf"/>
-                <DocumentOrActionItem label="10th Mark Sheet" url={profile.marksheet10thUrl} fieldName="marksheet10thUrl" actionLabel="View 10th Mark Sheet" uploadable={true} onFileSelected={handleFileSelect} acceptFileType="image/*,application/pdf"/>
-                <DocumentOrActionItem label="12th Mark Sheet" url={profile.marksheet12thUrl} fieldName="marksheet12thUrl" actionLabel="View 12th Mark Sheet" uploadable={true} onFileSelected={handleFileSelect} acceptFileType="image/*,application/pdf"/>
-                <DocumentOrActionItem label="Migration Certificate" url={profile.migrationCertificateUrl} fieldName="migrationCertificateUrl" actionLabel="View Migration Certificate" uploadable={true} onFileSelected={handleFileSelect} acceptFileType="image/*,application/pdf"/>
-                <DocumentOrActionItem label="Bonafide Certificate" url={profile.bonafideCertificateUrl} fieldName="bonafideCertificateUrl" actionLabel="Download Bonafide" isDownloadable={true} />
+                <DocumentOrActionItem isEditMode={isEditMode} itemFileInputRef={idCardRef} label="ID Card" url={profile.idCardUrl} fieldName="idCardUrl" actionLabel="View ID Card" uploadable={true} onFileSelected={handleFileSelect} acceptFileType="image/*,application/pdf" />
+                <DocumentOrActionItem isEditMode={isEditMode} itemFileInputRef={admissionLetterRef} label="Admission Letter" url={profile.admissionLetterUrl} fieldName="admissionLetterUrl" actionLabel="View Admission Letter" uploadable={true} onFileSelected={handleFileSelect} acceptFileType="image/*,application/pdf"/>
+                <DocumentOrActionItem isEditMode={isEditMode} itemFileInputRef={marksheet10thRef} label="10th Mark Sheet" url={profile.marksheet10thUrl} fieldName="marksheet10thUrl" actionLabel="View 10th Mark Sheet" uploadable={true} onFileSelected={handleFileSelect} acceptFileType="image/*,application/pdf"/>
+                <DocumentOrActionItem isEditMode={isEditMode} itemFileInputRef={marksheet12thRef} label="12th Mark Sheet" url={profile.marksheet12thUrl} fieldName="marksheet12thUrl" actionLabel="View 12th Mark Sheet" uploadable={true} onFileSelected={handleFileSelect} acceptFileType="image/*,application/pdf"/>
+                <DocumentOrActionItem isEditMode={isEditMode} itemFileInputRef={migrationCertRef} label="Migration Certificate" url={profile.migrationCertificateUrl} fieldName="migrationCertificateUrl" actionLabel="View Migration Certificate" uploadable={true} onFileSelected={handleFileSelect} acceptFileType="image/*,application/pdf"/>
+                <DocumentOrActionItem isEditMode={isEditMode} itemFileInputRef={bonafideCertRef} label="Bonafide Certificate" url={profile.bonafideCertificateUrl} fieldName="bonafideCertificateUrl" actionLabel="Download Bonafide" isDownloadable={true} />
             </div>
             <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div>
@@ -639,13 +691,15 @@ function ProfileDetailsLoader() {
             </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-1 gap-y-1 gap-x-4 md:grid-cols-2">
-            <InfoItem label="Exam Registration" value={profile.examRegistrationStatus} fieldName="examRegistrationStatus" onEditRequest={openRequestModal}/>
-            <DocumentOrActionItem label="Admit Card" url={profile.admitCardUrl} fieldName="admitCardUrl" actionLabel="Download Admit Card" isDownloadable={true} icon={Download} uploadable={true} onFileSelected={handleFileSelect} acceptFileType="application/pdf"/>
-            <DocumentOrActionItem label="Internal Exam Timetable" url={profile.internalExamTimetableUrl} fieldName="internalExamTimetableUrl" actionLabel="View Timetable" icon={Eye} uploadable={true} onFileSelected={handleFileSelect} acceptFileType="application/pdf"/>
-            <DocumentOrActionItem label="External Exam Timetable" url={profile.externalExamTimetableUrl} fieldName="externalExamTimetableUrl" actionLabel="View Timetable" icon={Eye} uploadable={true} onFileSelected={handleFileSelect} acceptFileType="application/pdf"/>
-            <DocumentOrActionItem label="Results and Grade Cards" url={profile.resultsAndGradeCardsUrl} fieldName="resultsAndGradeCardsUrl" actionLabel="View Results" icon={Eye} uploadable={true} onFileSelected={handleFileSelect} acceptFileType="application/pdf"/>
+            <InfoItem label="Exam Registration" value={profile.examRegistrationStatus} fieldName="examRegistrationStatus" onEditRequest={openRequestModal} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.examRegistrationStatus} profileValue={profile.examRegistrationStatus}/>
+            <DocumentOrActionItem isEditMode={isEditMode} itemFileInputRef={admitCardRef} label="Admit Card" url={profile.admitCardUrl} fieldName="admitCardUrl" actionLabel="Download Admit Card" isDownloadable={true} icon={Download} uploadable={true} onFileSelected={handleFileSelect} acceptFileType="application/pdf"/>
+            <DocumentOrActionItem isEditMode={isEditMode} itemFileInputRef={internalTimetableRef} label="Internal Exam Timetable" url={profile.internalExamTimetableUrl} fieldName="internalExamTimetableUrl" actionLabel="View Timetable" icon={Eye} uploadable={true} onFileSelected={handleFileSelect} acceptFileType="application/pdf"/>
+            <DocumentOrActionItem isEditMode={isEditMode} itemFileInputRef={externalTimetableRef} label="External Exam Timetable" url={profile.externalExamTimetableUrl} fieldName="externalExamTimetableUrl" actionLabel="View Timetable" icon={Eye} uploadable={true} onFileSelected={handleFileSelect} acceptFileType="application/pdf"/>
+            <DocumentOrActionItem isEditMode={isEditMode} itemFileInputRef={resultsRef} label="Results and Grade Cards" url={profile.resultsAndGradeCardsUrl} fieldName="resultsAndGradeCardsUrl" actionLabel="View Results" icon={Eye} uploadable={true} onFileSelected={handleFileSelect} acceptFileType="application/pdf"/>
             <div className="md:col-span-1"> 
                 <DocumentOrActionItem
+                    isEditMode={isEditMode}
+                    itemFileInputRef={useRef<HTMLInputElement>(null)}
                     label={`Revaluation (${profile.revaluationRequestStatus || 'N/A'})`}
                     url={profile.revaluationRequestStatus === 'None' && profile.revaluationRequestLink ? profile.revaluationRequestLink : undefined}
                     fieldName="revaluationRequestLink" 
