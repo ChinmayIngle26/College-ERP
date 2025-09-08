@@ -175,6 +175,7 @@ function ProfileDetailsLoader() {
   const internalTimetableRef = useRef<HTMLInputElement>(null);
   const externalTimetableRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLInputElement>(null);
+  const revalRef = useRef<HTMLInputElement>(null); // Fixed: declared hook at top level
 
   const fileInputRefs = {
     idCardUrl: idCardRef,
@@ -699,7 +700,7 @@ function ProfileDetailsLoader() {
             <div className="md:col-span-1"> 
                 <DocumentOrActionItem
                     isEditMode={isEditMode}
-                    itemFileInputRef={useRef<HTMLInputElement>(null)}
+                    itemFileInputRef={revalRef}
                     label={`Revaluation (${profile.revaluationRequestStatus || 'N/A'})`}
                     url={profile.revaluationRequestStatus === 'None' && profile.revaluationRequestLink ? profile.revaluationRequestLink : undefined}
                     fieldName="revaluationRequestLink" 
