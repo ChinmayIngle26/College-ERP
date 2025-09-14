@@ -227,35 +227,37 @@ export default function ManageClassroomStudentsPage() {
                 {loadingStudents ? (
                 <Skeleton className="h-40 w-full" />
                 ) : currentStudents.length > 0 ? (
-                <Table>
-                    <TableHeader>
-                    <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Student ID</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead>Batch</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {currentStudents.map((student) => (
-                        <TableRow key={student.userId}>
-                        <TableCell>{student.name}</TableCell>
-                        <TableCell>{student.studentIdNumber}</TableCell>
-                        <TableCell>{student.email || 'N/A'}</TableCell>
-                        <TableCell>{student.batch || 'N/A'}</TableCell>
-                        <TableCell className="text-right space-x-1">
-                            <Button variant="ghost" size="icon" onClick={() => openBatchEditModal(student)} disabled={isSubmitting} className="text-blue-600 hover:text-blue-700">
-                            <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" onClick={() => handleRemoveStudent(student.userId)} disabled={isSubmitting} className="text-destructive hover:text-destructive/80">
-                            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                            </Button>
-                        </TableCell>
+                <div className="overflow-auto max-h-[60vh] relative">
+                    <Table>
+                        <TableHeader className="sticky top-0 bg-muted">
+                        <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Student ID</TableHead>
+                            <TableHead>Email</TableHead>
+                            <TableHead>Batch</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                    ))}
-                    </TableBody>
-                </Table>
+                        </TableHeader>
+                        <TableBody>
+                        {currentStudents.map((student) => (
+                            <TableRow key={student.userId}>
+                            <TableCell>{student.name}</TableCell>
+                            <TableCell>{student.studentIdNumber}</TableCell>
+                            <TableCell>{student.email || 'N/A'}</TableCell>
+                            <TableCell>{student.batch || 'N/A'}</TableCell>
+                            <TableCell className="text-right space-x-1">
+                                <Button variant="ghost" size="icon" onClick={() => openBatchEditModal(student)} disabled={isSubmitting} className="text-blue-600 hover:text-blue-700">
+                                <Edit className="h-4 w-4" />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleRemoveStudent(student.userId)} disabled={isSubmitting} className="text-destructive hover:text-destructive/80">
+                                {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                </Button>
+                            </TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                </div>
                 ) : (
                 <p className="text-muted-foreground">No students currently in this classroom.</p>
                 )}
@@ -291,38 +293,40 @@ export default function ManageClassroomStudentsPage() {
                         {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />} Add Selected ({Object.keys(selectedStudents).length})
                     </Button>
                 </div>
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead className="w-[50px]">
-                                <Checkbox
-                                    checked={Object.keys(selectedStudents).length === searchResults.length && searchResults.length > 0}
-                                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
-                                    aria-label="Select all"
-                                />
-                            </TableHead>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Student ID</TableHead>
-                            <TableHead>Email</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                    {searchResults.map((student) => (
-                        <TableRow key={student.uid} data-state={selectedStudents[student.uid] ? "selected" : ""}>
-                            <TableCell>
-                                <Checkbox
-                                    checked={!!selectedStudents[student.uid]}
-                                    onCheckedChange={(checked) => handleSelectStudent(student, !!checked)}
-                                    aria-label={`Select ${student.name}`}
-                                />
-                            </TableCell>
-                            <TableCell>{student.name}</TableCell>
-                            <TableCell>{student.studentId}</TableCell>
-                            <TableCell>{student.email}</TableCell>
-                        </TableRow>
-                    ))}
-                    </TableBody>
-                </Table>
+                <div className="overflow-auto max-h-[50vh] relative">
+                    <Table>
+                        <TableHeader className="sticky top-0 bg-muted">
+                            <TableRow>
+                                <TableHead className="w-[50px]">
+                                    <Checkbox
+                                        checked={Object.keys(selectedStudents).length === searchResults.length && searchResults.length > 0}
+                                        onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                                        aria-label="Select all"
+                                    />
+                                </TableHead>
+                                <TableHead>Name</TableHead>
+                                <TableHead>Student ID</TableHead>
+                                <TableHead>Email</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {searchResults.map((student) => (
+                            <TableRow key={student.uid} data-state={selectedStudents[student.uid] ? "selected" : ""}>
+                                <TableCell>
+                                    <Checkbox
+                                        checked={!!selectedStudents[student.uid]}
+                                        onCheckedChange={(checked) => handleSelectStudent(student, !!checked)}
+                                        aria-label={`Select ${student.name}`}
+                                    />
+                                </TableCell>
+                                <TableCell>{student.name}</TableCell>
+                                <TableCell>{student.studentId}</TableCell>
+                                <TableCell>{student.email}</TableCell>
+                            </TableRow>
+                        ))}
+                        </TableBody>
+                    </Table>
+                </div>
                 </>
                 )}
                 {!loadingSearch && searchTerm.trim() && searchResults.length === 0 && (
@@ -366,3 +370,5 @@ export default function ManageClassroomStudentsPage() {
     </>
   );
 }
+
+    

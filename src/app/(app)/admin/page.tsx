@@ -527,9 +527,9 @@ export default function AdminPage() {
           ) : (
             <>
               {filteredUsers.length > 0 ? (
-                <div className="overflow-x-auto">
+                <div className="overflow-x-auto max-h-[60vh] relative">
                   <table className="min-w-full divide-y divide-border">
-                    <thead className="bg-muted">
+                    <thead className="bg-muted sticky top-0">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Name</th>
                         <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground">Student ID</th>
@@ -654,3 +654,5 @@ export default function AdminPage() {
   );
 }
 
+
+    
