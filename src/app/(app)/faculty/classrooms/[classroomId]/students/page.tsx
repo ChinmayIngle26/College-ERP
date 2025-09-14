@@ -132,7 +132,7 @@ export default function ManageClassroomStudentsPage() {
       await removeStudentFromClassroom(idToken, classroomId, studentUid);
       toast({ title: "Student Removed", description: "The student has been removed from the classroom." });
       fetchClassroomDetailsAndStudents(); 
-    } catch (error) => {
+    } catch (error) {
       toast({ title: "Error Removing Student", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
