@@ -211,14 +211,11 @@ export async function getStudentsInClassroom(idToken: string, classroomId: strin
   }
 }
 
-// Updated to accept student details and batch
-export async function addStudentToClassroom(idToken: string, classroomId: string, studentUid: string): Promise<void> {
+export async function addStudentsToClassroom(idToken: string, classroomId: string, studentsToAdd: StudentSearchResultItem[]): Promise<void> {
     if (adminInitializationError) {
-      console.error("[classroomService:addStudentToClassroom SA] Admin SDK init failed:", adminInitializationError.message);
       throw new Error("Server error: Admin SDK initialization failed.");
     }
     if (!adminDb || !adminAuth) {
-      console.error("[classroomService:addStudentToClassroom SA] Admin DB or Auth not initialized.");
       throw new Error("Server error: Admin services not initialized.");
     }
     let facultyId: string;
@@ -232,46 +229,41 @@ export async function addStudentToClassroom(idToken: string, classroomId: string
     if (!permCheck.permitted) {
         throw new Error("Permission denied to modify this classroom.");
     }
-    
-    const studentDocRef = adminDb.collection('users').doc(studentUid);
-    const studentSnap = await studentDocRef.get();
-    if (!studentSnap.exists || studentSnap.data()?.role !== 'student') { 
-        throw new Error("Student not found or user is not a student role.");
-    }
-    const studentData = studentSnap.data() as StudentProfile;
-
-    // Auto-assign batch based on studentId format (e.g., "ET-A-001")
-    let assignedBatch: string | undefined = undefined;
-    if (studentData.studentId) {
-        const parts = studentData.studentId.split('-');
-        if (parts.length === 3) {
-            // Assuming format is BRANCH-BATCH-ROLLNO
-            assignedBatch = parts[1].toUpperCase();
-        }
-    }
-
-    const studentToAdd: ClassroomStudentInfo = {
-        userId: studentUid,
-        studentIdNumber: studentData.studentId || 'N/A', 
-        name: studentData.name || 'N/A',
-        email: studentData.email || 'N/A',
-    };
-
-    if (assignedBatch) {
-        studentToAdd.batch = assignedBatch;
-    }
 
     const classroomDocRef = adminDb.collection('classrooms').doc(classroomId);
+    
+    // Create an array of ClassroomStudentInfo from the search results
+    const studentsToStore: ClassroomStudentInfo[] = studentsToAdd.map(student => {
+        let assignedBatch: string | undefined = undefined;
+        if (student.studentId) {
+            const parts = student.studentId.split('-');
+            if (parts.length === 3) {
+                assignedBatch = parts[1].toUpperCase();
+            }
+        }
+        return {
+            userId: student.uid,
+            studentIdNumber: student.studentId || 'N/A',
+            name: student.name || 'N/A',
+            email: student.email || 'N/A',
+            batch: assignedBatch,
+        };
+    });
+    
+    // Get all student UIDs to add
+    const studentUidsToAdd = studentsToAdd.map(s => s.uid);
+
     try {
         await classroomDocRef.update({
-            students: AdminFieldValue.arrayUnion(studentToAdd),
-            studentUids: AdminFieldValue.arrayUnion(studentUid) // Also update the studentUids array
+            students: AdminFieldValue.arrayUnion(...studentsToStore),
+            studentUids: AdminFieldValue.arrayUnion(...studentUidsToAdd)
         });
     } catch (error) {
-        console.error("Error adding student to classroom:", error);
+        console.error("Error adding students to classroom:", error);
         throw error;
     }
 }
+
 
 // Updated to remove student object from array
 export async function removeStudentFromClassroom(idToken: string, classroomId: string, studentUserId: string): Promise<void> {

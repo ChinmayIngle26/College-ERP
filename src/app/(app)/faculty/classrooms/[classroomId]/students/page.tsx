@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { PlusCircle, Trash2, Search, UserPlus, Loader2, ArrowLeft, Edit } from 'lucide-react';
@@ -18,7 +19,7 @@ import { auth as clientAuth } from '@/lib/firebase/client'; // For getIdToken
 import { 
     getStudentsInClassroom,
     removeStudentFromClassroom, 
-    addStudentToClassroom,
+    addStudentsToClassroom,
     searchStudents,
     getClassroomsByFaculty,
     updateStudentBatchInClassroom
@@ -41,6 +42,7 @@ export default function ManageClassroomStudentsPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [searchResults, setSearchResults] = useState<StudentSearchResultItem[]>([]);
   const [loadingSearch, setLoadingSearch] = useState(false);
+  const [selectedStudents, setSelectedStudents] = useState<{[key: string]: StudentSearchResultItem}>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [editingStudent, setEditingStudent] = useState<ClassroomStudentInfo | null>(null);
@@ -81,6 +83,7 @@ export default function ManageClassroomStudentsPage() {
   const handleSearchStudents = async () => {
     if (!searchTerm.trim() || !user || !clientAuth.currentUser) return;
     setLoadingSearch(true);
+    setSelectedStudents({});
     try {
       const idToken = await clientAuth.currentUser.getIdToken();
       const results = await searchStudents(idToken, classroomId, searchTerm);
@@ -95,18 +98,27 @@ export default function ManageClassroomStudentsPage() {
     }
   };
 
-  const handleAddStudent = async (studentUid: string) => {
+  const handleAddSelectedStudents = async () => {
     if (!user || !clientAuth.currentUser) return;
+    const studentUidsToAdd = Object.keys(selectedStudents);
+    if(studentUidsToAdd.length === 0){
+        toast({ title: "No Students Selected", description: "Please select students to add." });
+        return;
+    }
+    
     setIsSubmitting(true);
     try {
       const idToken = await clientAuth.currentUser.getIdToken();
-      await addStudentToClassroom(idToken, classroomId, studentUid);
-      toast({ title: "Student Added", description: "The student has been added to the classroom." });
+      const studentsDetails = studentUidsToAdd.map(uid => selectedStudents[uid]);
+      await addStudentsToClassroom(idToken, classroomId, studentsDetails);
+
+      toast({ title: "Students Added", description: `${studentUidsToAdd.length} student(s) have been added to the classroom.` });
       fetchClassroomDetailsAndStudents(); 
       setSearchTerm(''); 
-      setSearchResults([]); 
+      setSearchResults([]);
+      setSelectedStudents({});
     } catch (error) {
-      toast({ title: "Error Adding Student", description: (error as Error).message, variant: "destructive" });
+      toast({ title: "Error Adding Students", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -120,7 +132,7 @@ export default function ManageClassroomStudentsPage() {
       await removeStudentFromClassroom(idToken, classroomId, studentUid);
       toast({ title: "Student Removed", description: "The student has been removed from the classroom." });
       fetchClassroomDetailsAndStudents(); 
-    } catch (error) {
+    } catch (error) => {
       toast({ title: "Error Removing Student", description: (error as Error).message, variant: "destructive" });
     } finally {
       setIsSubmitting(false);
@@ -149,26 +161,31 @@ export default function ManageClassroomStudentsPage() {
       setIsSubmitting(false);
     }
   };
-  
-  const debouncedSearch = useMemo(() => {
-    let timeoutId: NodeJS.Timeout;
-    return () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        if (searchTerm.trim().length > 2) { 
-          handleSearchStudents();
-        } else if (searchTerm.trim().length === 0) {
-            setSearchResults([]); 
+
+  const handleSelectStudent = (student: StudentSearchResultItem, isSelected: boolean) => {
+    setSelectedStudents(prev => {
+        const newSelection = {...prev};
+        if(isSelected){
+            newSelection[student.uid] = student;
+        } else {
+            delete newSelection[student.uid];
         }
-      }, 500); 
-    };
-  }, [searchTerm, classroomId, user]);
+        return newSelection;
+    });
+  };
 
-  useEffect(() => {
-    debouncedSearch();
-  }, [searchTerm, debouncedSearch]);
-
-
+  const handleSelectAll = (isSelected: boolean) => {
+      if(isSelected){
+          const allSelected = searchResults.reduce((acc, student) => {
+              acc[student.uid] = student;
+              return acc;
+          }, {} as {[key: string]: StudentSearchResultItem});
+          setSelectedStudents(allSelected);
+      } else {
+          setSelectedStudents({});
+      }
+  };
+  
   if (authLoading || (!user && !authLoading)) { 
     return (
       <>
@@ -204,7 +221,7 @@ export default function ManageClassroomStudentsPage() {
             <Card>
             <CardHeader>
                 <CardTitle>Current Students ({currentStudents.length})</CardTitle>
-                <CardDescription>Students currently enrolled. Batches are auto-assigned if student ID format is like 'A-123'.</CardDescription>
+                <CardDescription>Students currently enrolled. Batches can be assigned by editing a student.</CardDescription>
             </CardHeader>
             <CardContent>
                 {loadingStudents ? (
@@ -257,6 +274,7 @@ export default function ManageClassroomStudentsPage() {
                     placeholder="Search students..." 
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSearchStudents()}
                     className="flex-grow"
                 />
                 <Button onClick={handleSearchStudents} disabled={loadingSearch || !searchTerm.trim()}>
@@ -267,30 +285,45 @@ export default function ManageClassroomStudentsPage() {
                 {loadingSearch && <div className="flex justify-center items-center p-4"><Loader2 className="h-6 w-6 animate-spin text-primary" /> <span className="ml-2">Searching...</span></div>}
                 
                 {!loadingSearch && searchResults.length > 0 && (
+                <>
+                <div className="mb-4">
+                    <Button onClick={handleAddSelectedStudents} disabled={isSubmitting || Object.keys(selectedStudents).length === 0}>
+                        {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />} Add Selected ({Object.keys(selectedStudents).length})
+                    </Button>
+                </div>
                 <Table>
                     <TableHeader>
-                    <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Student ID</TableHead>
-                        <TableHead>Email</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
+                        <TableRow>
+                            <TableHead className="w-[50px]">
+                                <Checkbox
+                                    checked={Object.keys(selectedStudents).length === searchResults.length && searchResults.length > 0}
+                                    onCheckedChange={(checked) => handleSelectAll(!!checked)}
+                                    aria-label="Select all"
+                                />
+                            </TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Student ID</TableHead>
+                            <TableHead>Email</TableHead>
+                        </TableRow>
                     </TableHeader>
                     <TableBody>
                     {searchResults.map((student) => (
-                        <TableRow key={student.uid}>
-                        <TableCell>{student.name}</TableCell>
-                        <TableCell>{student.studentId}</TableCell>
-                        <TableCell>{student.email}</TableCell>
-                        <TableCell className="text-right">
-                            <Button variant="outline" size="sm" onClick={() => handleAddStudent(student.uid)} disabled={isSubmitting}>
-                            {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin"/> : <UserPlus className="h-4 w-4" />} Add
-                            </Button>
-                        </TableCell>
+                        <TableRow key={student.uid} data-state={selectedStudents[student.uid] ? "selected" : ""}>
+                            <TableCell>
+                                <Checkbox
+                                    checked={!!selectedStudents[student.uid]}
+                                    onCheckedChange={(checked) => handleSelectStudent(student, !!checked)}
+                                    aria-label={`Select ${student.name}`}
+                                />
+                            </TableCell>
+                            <TableCell>{student.name}</TableCell>
+                            <TableCell>{student.studentId}</TableCell>
+                            <TableCell>{student.email}</TableCell>
                         </TableRow>
                     ))}
                     </TableBody>
                 </Table>
+                </>
                 )}
                 {!loadingSearch && searchTerm.trim() && searchResults.length === 0 && (
                     <p className="text-muted-foreground text-center p-4">No students found matching "{searchTerm}" or they are already in this classroom.</p>
