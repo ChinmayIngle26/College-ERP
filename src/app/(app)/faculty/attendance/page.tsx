@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarIcon, CheckCircle, User, Users, BookOpen, Loader2, Search, Download } from 'lucide-react';
+import { CalendarIcon, CheckCircle, User, Users, BookOpen, Loader2, Search, Download, AlertTriangle } from 'lucide-react';
 import { useState, useEffect, useMemo } from 'react';
 import { format, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -30,6 +30,15 @@ import { exportDataToCsv } from '@/lib/csv-exporter';
 type StudentAttendanceStatus = {
     [studentId: string]: boolean; // true for present, false for absent
 };
+
+interface LowAttendanceStudent {
+    studentId: string;
+    name: string;
+    studentIdNumber: string;
+    totalLectures: number;
+    attendedLectures: number;
+    percentage: number;
+}
 
 const WHOLE_CLASS_FILTER_VALUE = "__WHOLE_CLASS__";
 
@@ -60,6 +69,8 @@ export default function FacultyAttendancePage() {
     const [endDate, setEndDate] = useState<Date | undefined>();
     const [reportRecords, setReportRecords] = useState<LectureAttendanceRecord[]>([]);
     const [isFetchingRecords, setIsFetchingRecords] = useState(false);
+    const [lowAttendanceStudents, setLowAttendanceStudents] = useState<LowAttendanceStudent[]>([]);
+    const [attendanceThreshold, setAttendanceThreshold] = useState<number>(75);
 
     const groupedReportRecords = useMemo(() => {
         if (reportRecords.length === 0) return [];
@@ -347,6 +358,7 @@ export default function FacultyAttendancePage() {
 
         setIsFetchingRecords(true);
         setReportRecords([]);
+        setLowAttendanceStudents([]);
         try {
             const idToken = await clientAuth.currentUser.getIdToken();
             const fetchedRecords = await getLectureAttendanceForDateRange(
@@ -356,8 +368,11 @@ export default function FacultyAttendancePage() {
                 format(endDate, 'yyyy-MM-dd')
             );
             setReportRecords(fetchedRecords);
-            if (fetchedRecords.length === 0) {
-                toast({ title: "No Records Found", description: "No attendance records were found for the selected classroom and date range."});
+            
+            if (fetchedRecords.length > 0) {
+                calculateLowAttendanceReport(fetchedRecords);
+            } else {
+                 toast({ title: "No Records Found", description: "No attendance records were found for the selected classroom and date range."});
             }
         } catch (error) {
             console.error("Error fetching attendance records:", error);
@@ -365,6 +380,40 @@ export default function FacultyAttendancePage() {
         } finally {
             setIsFetchingRecords(false);
         }
+    };
+    
+    const calculateLowAttendanceReport = (records: LectureAttendanceRecord[]) => {
+        const studentStats: { [key: string]: { name: string; studentIdNumber: string; total: number; present: number; } } = {};
+        
+        records.forEach(record => {
+            if (!studentStats[record.studentId]) {
+                studentStats[record.studentId] = { 
+                    name: record.studentName,
+                    studentIdNumber: record.studentIdNumber || 'N/A',
+                    total: 0, 
+                    present: 0 
+                };
+            }
+            studentStats[record.studentId].total++;
+            if (record.status === 'present') {
+                studentStats[record.studentId].present++;
+            }
+        });
+
+        const defaulters = Object.keys(studentStats).map(studentId => {
+            const stats = studentStats[studentId];
+            const percentage = stats.total > 0 ? (stats.present / stats.total) * 100 : 0;
+            return {
+                studentId,
+                name: stats.name,
+                studentIdNumber: stats.studentIdNumber,
+                totalLectures: stats.total,
+                attendedLectures: stats.present,
+                percentage,
+            };
+        }).filter(student => student.percentage < attendanceThreshold);
+
+        setLowAttendanceStudents(defaulters.sort((a,b) => a.percentage - b.percentage));
     };
 
     const handleDownloadReport = () => {
@@ -417,6 +466,25 @@ export default function FacultyAttendancePage() {
 
         const classroomName = selectedClassroomDetails?.name || 'Classroom';
         const filename = `Attendance_Report_${classroomName}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
+        exportDataToCsv(dataForCsv, filename);
+    };
+
+    const handleDownloadDefaulterReport = () => {
+        if (lowAttendanceStudents.length === 0) {
+            toast({ title: "No Data to Export", description: "There are no students in the low attendance list.", variant: "destructive" });
+            return;
+        }
+
+        const dataForCsv = lowAttendanceStudents.map(student => ({
+            'Student ID': student.studentIdNumber,
+            'Name': student.name,
+            'Total Lectures': student.totalLectures,
+            'Attended Lectures': student.attendedLectures,
+            'Attendance %': student.percentage.toFixed(2),
+        }));
+
+        const classroomName = selectedClassroomDetails?.name || 'Classroom';
+        const filename = `Low_Attendance_Report_${classroomName}_${format(new Date(), 'yyyy-MM-dd')}.csv`;
         exportDataToCsv(dataForCsv, filename);
     };
 
@@ -562,40 +630,81 @@ export default function FacultyAttendancePage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>View Attendance Reports</CardTitle>
-                        <CardDescription>Select a classroom and a date range to view past attendance records.</CardDescription>
+                        <CardDescription>Select a classroom and a date range to view past attendance records and generate reports.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-                            <div className="lg:col-span-1">
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+                            <div className="xl:col-span-1">
                                 <Label htmlFor="classroom-report">Classroom</Label>
                                 {loadingClassrooms ? <Skeleton className="h-10 w-full" /> : (
                                     <Select value={selectedClassroomId} onValueChange={setSelectedClassroomId} disabled={classrooms.length === 0}>
-                                        <SelectTrigger id="classroom-report"><SelectValue placeholder={classrooms.length > 0 ? "Choose a classroom" : "No classrooms assigned"} /></SelectTrigger>
+                                        <SelectTrigger id="classroom-report"><SelectValue placeholder={classrooms.length > 0 ? "Choose a classroom" : "No classrooms"} /></SelectTrigger>
                                         <SelectContent>{classrooms.map(cr => (<SelectItem key={cr.id} value={cr.id}>{cr.name} ({cr.subject})</SelectItem>))}</SelectContent>
                                     </Select>)}
                             </div>
-                            <div className="lg:col-span-1">
+                            <div className="xl:col-span-1">
                                 <Label htmlFor="startDate">Start Date</Label>
-                                <Popover><PopoverTrigger asChild><Button id="startDate" variant={"outline"} className={cn("w-full justify-start text-left font-normal",!startDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{startDate && isValid(startDate) ? format(startDate, "PPP") : <span>Pick a start date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus /></PopoverContent></Popover>
+                                <Popover><PopoverTrigger asChild><Button id="startDate" variant={"outline"} className={cn("w-full justify-start text-left font-normal",!startDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{startDate && isValid(startDate) ? format(startDate, "PPP") : <span>Pick start date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus /></PopoverContent></Popover>
                             </div>
-                            <div className="lg:col-span-1">
+                            <div className="xl:col-span-1">
                                 <Label htmlFor="endDate">End Date</Label>
-                                <Popover><PopoverTrigger asChild><Button id="endDate" variant={"outline"} className={cn("w-full justify-start text-left font-normal",!endDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{endDate && isValid(endDate) ? format(endDate, "PPP") : <span>Pick an end date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus /></PopoverContent></Popover>
+                                <Popover><PopoverTrigger asChild><Button id="endDate" variant={"outline"} className={cn("w-full justify-start text-left font-normal",!endDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{endDate && isValid(endDate) ? format(endDate, "PPP") : <span>Pick end date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus /></PopoverContent></Popover>
                             </div>
-                            <div className="flex items-end lg:col-span-1">
+                            <div className="flex items-end xl:col-span-1">
                                 <Button onClick={handleViewRecords} disabled={isFetchingRecords} className="w-full">{isFetchingRecords ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}View Records</Button>
                             </div>
-                            <div className="flex items-end lg:col-span-1">
-                                <Button onClick={handleDownloadReport} disabled={isFetchingRecords || reportRecords.length === 0} className="w-full"><Download className="mr-2 h-4 w-4"/>Download Report</Button>
+                            <div className="flex items-end xl:col-span-1">
+                                <Button onClick={handleDownloadReport} disabled={isFetchingRecords || reportRecords.length === 0} className="w-full"><Download className="mr-2 h-4 w-4"/>Full Report</Button>
+                            </div>
+                             <div className="flex items-end xl:col-span-1">
+                                <Button variant="secondary" onClick={handleDownloadDefaulterReport} disabled={isFetchingRecords || lowAttendanceStudents.length === 0} className="w-full"><Download className="mr-2 h-4 w-4"/>Defaulter List</Button>
                             </div>
                         </div>
+
                          {isFetchingRecords && (
                             <div className="flex items-center justify-center p-6"><Loader2 className="h-6 w-6 animate-spin text-primary" /> <span className="ml-2">Fetching records...</span></div>
                         )}
                         
+                        {!isFetchingRecords && lowAttendanceStudents.length > 0 && (
+                            <Card className="mt-6 border-destructive">
+                                <CardHeader>
+                                    <CardTitle className="flex items-center gap-2 text-destructive">
+                                        <AlertTriangle /> Low Attendance Report (&lt;{attendanceThreshold}%)
+                                    </CardTitle>
+                                    <CardDescription>
+                                        The following students have attendance below the threshold in the selected date range.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Student ID</TableHead>
+                                                <TableHead>Name</TableHead>
+                                                <TableHead>Total Lectures</TableHead>
+                                                <TableHead>Attended</TableHead>
+                                                <TableHead className="text-right">Attendance %</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {lowAttendanceStudents.map(student => (
+                                                <TableRow key={student.studentId}>
+                                                    <TableCell>{student.studentIdNumber}</TableCell>
+                                                    <TableCell>{student.name}</TableCell>
+                                                    <TableCell>{student.totalLectures}</TableCell>
+                                                    <TableCell>{student.attendedLectures}</TableCell>
+                                                    <TableCell className="text-right font-bold">{student.percentage.toFixed(2)}%</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        )}
+                        
                         {!isFetchingRecords && reportRecords.length > 0 && (
                             <div className="mt-6">
-                                <h3 className="text-lg font-medium mb-2">Attendance Data</h3>
+                                <h3 className="text-lg font-medium mb-2">Detailed Daily Records</h3>
                                 <Accordion type="single" collapsible className="w-full space-y-2">
                                     {groupedReportRecords.map((dateGroup, index) => (
                                         <AccordionItem value={`date-${index}`} key={dateGroup.date} className="border rounded-lg px-4 bg-muted/20">
