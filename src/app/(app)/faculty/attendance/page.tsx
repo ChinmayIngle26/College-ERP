@@ -11,7 +11,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarIcon, CheckCircle, User, Users, BookOpen, Loader2, Search, Download, AlertTriangle, Lightbulb } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { CalendarIcon, CheckCircle, User, Users, BookOpen, Loader2, Search, Download, AlertTriangle, Lightbulb, Trash2 } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -19,7 +20,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
 import { auth as clientAuth } from '@/lib/firebase/client';
 import { getClassroomsByFaculty, getStudentsInClassroom } from '@/services/classroomService';
-import { submitLectureAttendance, getLectureAttendanceForDate, getLectureAttendanceForDateRange } from '@/services/attendance';
+import { submitLectureAttendance, getLectureAttendanceForDate, getLectureAttendanceForDateRange, deleteLectureAttendance } from '@/services/attendance';
 import type { Classroom, ClassroomStudentInfo } from '@/types/classroom';
 import type { LectureAttendanceRecord } from '@/types/lectureAttendance';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -69,6 +70,7 @@ export default function FacultyAttendancePage() {
     const [lectureSubjectTopic, setLectureSubjectTopic] = useState<string>('');
     const [attendanceStatus, setAttendanceStatus] = useState<StudentAttendanceStatus>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
     const [selectAllChecked, setSelectAllChecked] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
     const [loadingPreviousAttendance, setLoadingPreviousAttendance] = useState(false);
@@ -247,57 +249,58 @@ export default function FacultyAttendancePage() {
         }
     }, [selectedClassroomId, user]);
     
-    useEffect(() => {
-        const fetchPreviousAttendance = async () => {
-            if (!selectedClassroomId || !selectedDate || !user || !clientAuth.currentUser) {
+    const fetchPreviousAttendance = useCallback(async () => {
+        if (!selectedClassroomId || !selectedDate || !user || !clientAuth.currentUser) {
+            setIsEditing(false);
+            setLectureSubjectTopic('');
+            const initialStatus: StudentAttendanceStatus = {};
+            currentStudents.forEach(s => initialStatus[s.userId] = false); // Default to absent
+            setAttendanceStatus(initialStatus);
+            return;
+        }
+
+        setLoadingPreviousAttendance(true);
+        try {
+            const idToken = await clientAuth.currentUser.getIdToken();
+            const dateString = format(selectedDate, 'yyyy-MM-dd');
+            const previousRecords = await getLectureAttendanceForDate(idToken, selectedClassroomId, dateString);
+
+            if (previousRecords && previousRecords.length > 0) {
+                setIsEditing(true);
+                setLectureSubjectTopic(previousRecords[0].lectureName);
+
+                const previousStatus: StudentAttendanceStatus = {};
+                currentStudents.forEach(student => {
+                    const record = previousRecords.find(r => r.studentId === student.userId);
+                    previousStatus[student.userId] = record ? record.status === 'present' : false;
+                });
+
+                setAttendanceStatus(previousStatus);
+                toast({
+                    title: "Existing Record Loaded",
+                    description: `Attendance for ${format(selectedDate, "PPP")} loaded for editing.`,
+                });
+            } else {
                 setIsEditing(false);
                 setLectureSubjectTopic('');
                 const initialStatus: StudentAttendanceStatus = {};
                 currentStudents.forEach(s => initialStatus[s.userId] = false); // Default to absent
                 setAttendanceStatus(initialStatus);
-                return;
             }
+        } catch (error) {
+            toast({ title: "Error", description: (error as Error).message || "Could not load previous attendance.", variant: "destructive" });
+            setIsEditing(false);
+        } finally {
+            setLoadingPreviousAttendance(false);
+        }
+    }, [selectedClassroomId, selectedDate, user, currentStudents, toast]);
 
-            setLoadingPreviousAttendance(true);
-            try {
-                const idToken = await clientAuth.currentUser.getIdToken();
-                const dateString = format(selectedDate, 'yyyy-MM-dd');
-                const previousRecords = await getLectureAttendanceForDate(idToken, selectedClassroomId, dateString);
-
-                if (previousRecords && previousRecords.length > 0) {
-                    setIsEditing(true);
-                    setLectureSubjectTopic(previousRecords[0].lectureName);
-
-                    const previousStatus: StudentAttendanceStatus = {};
-                    currentStudents.forEach(student => {
-                        const record = previousRecords.find(r => r.studentId === student.userId);
-                        previousStatus[student.userId] = record ? record.status === 'present' : false;
-                    });
-
-                    setAttendanceStatus(previousStatus);
-                    toast({
-                        title: "Existing Record Loaded",
-                        description: `Attendance for ${format(selectedDate, "PPP")} loaded for editing.`,
-                    });
-                } else {
-                    setIsEditing(false);
-                    setLectureSubjectTopic('');
-                    const initialStatus: StudentAttendanceStatus = {};
-                    currentStudents.forEach(s => initialStatus[s.userId] = false); // Default to absent
-                    setAttendanceStatus(initialStatus);
-                }
-            } catch (error) {
-                toast({ title: "Error", description: (error as Error).message || "Could not load previous attendance.", variant: "destructive" });
-                setIsEditing(false);
-            } finally {
-                setLoadingPreviousAttendance(false);
-            }
-        };
-
+    useEffect(() => {
         if (!loadingStudents && selectedClassroomId) {
             fetchPreviousAttendance();
         }
-    }, [selectedClassroomId, selectedDate, user, loadingStudents]);
+    }, [selectedClassroomId, selectedDate, user, loadingStudents, fetchPreviousAttendance]);
+
 
     const filteredStudentsToDisplay = useMemo(() => {
         let studentsToDisplay = currentStudents;
@@ -408,6 +411,31 @@ export default function FacultyAttendancePage() {
             setIsSubmitting(false);
         }
     };
+    
+    const handleDeleteAttendance = async () => {
+        if (!user || !clientAuth.currentUser || !selectedClassroomId || !selectedDate) {
+            toast({ title: "Error", description: "Classroom or date not selected.", variant: "destructive" });
+            return;
+        }
+        setIsDeleting(true);
+        try {
+            const idToken = await clientAuth.currentUser.getIdToken();
+            const dateString = format(selectedDate, "yyyy-MM-dd");
+            await deleteLectureAttendance(idToken, selectedClassroomId, dateString);
+            toast({
+                title: "Attendance Deleted",
+                description: `All attendance records for ${format(selectedDate, "PPP")} have been deleted.`,
+            });
+            // Reset the form state
+            fetchPreviousAttendance();
+        } catch (error) {
+            console.error("Error deleting attendance:", error);
+            toast({ title: "Deletion Failed", description: (error as Error).message, variant: "destructive" });
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
 
     const handleViewRecords = async () => {
         if (!user || !clientAuth.currentUser) {
@@ -653,7 +681,31 @@ export default function FacultyAttendancePage() {
                                         </TableBody>
                                     </Table>
                                 </div>
-                                <div className="p-4 flex justify-end border-t">
+                                <div className="p-4 flex items-center justify-end gap-2 border-t">
+                                     {isEditing && (
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="destructive" disabled={isDeleting}>
+                                                    <Trash2 className="mr-2 h-4 w-4" /> Delete Attendance
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                                    <AlertDialogDescription>
+                                                        This will permanently delete all attendance records for this classroom on <strong>{format(selectedDate, "PPP")}</strong>. This action cannot be undone.
+                                                    </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                    <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                                                    <AlertDialogAction onClick={handleDeleteAttendance} disabled={isDeleting} className="bg-destructive hover:bg-destructive/80">
+                                                        {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : null}
+                                                        Confirm Delete
+                                                    </AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
+                                    )}
                                     <Button onClick={handleSubmitAttendance} disabled={isSubmitting || !allStudentsHaveDefinedStatus || !lectureSubjectTopic.trim()}>
                                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                         {isEditing ? 'Update Attendance' : 'Submit Attendance'}

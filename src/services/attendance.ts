@@ -281,3 +281,53 @@ export async function submitLectureAttendance(records: Omit<LectureAttendanceRec
     throw error;
   }
 }
+
+/**
+ * Deletes all lecture attendance records for a specific classroom and date.
+ * This is a Server Action called by faculty.
+ * @param idToken - Faculty's Firebase ID token.
+ * @param classroomId - The ID of the classroom.
+ * @param date - The date in "yyyy-MM-dd" format for which to delete records.
+ */
+export async function deleteLectureAttendance(idToken: string, classroomId: string, date: string): Promise<void> {
+  if (adminInitializationError) {
+    throw new Error("Server error: Admin SDK initialization failed.");
+  }
+  if (!adminDb || !adminAuth) {
+    throw new Error("Server error: Admin services not initialized.");
+  }
+
+  try {
+    await adminAuth.verifyIdToken(idToken);
+  } catch (error) {
+    console.error("deleteLectureAttendance SA Error: Invalid ID token", error);
+    throw new Error("Authentication failed.");
+  }
+
+  const batch = adminDb.batch();
+  const lectureAttendanceCollectionRef = adminDb.collection('lectureAttendance');
+
+  try {
+    const existingRecordsQuery = lectureAttendanceCollectionRef
+      .where('classroomId', '==', classroomId)
+      .where('date', '==', date);
+    
+    const snapshot = await existingRecordsQuery.get();
+    
+    if (snapshot.empty) {
+      console.log(`deleteLectureAttendance SA: No records found to delete for classroom ${classroomId} on ${date}.`);
+      return; // Nothing to do
+    }
+    
+    console.log(`deleteLectureAttendance SA: Found ${snapshot.docs.length} records to delete for classroom ${classroomId} on ${date}.`);
+    snapshot.docs.forEach(doc => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+    console.log(`deleteLectureAttendance SA: All records for classroom ${classroomId} on ${date} have been deleted.`);
+  } catch (error) {
+    console.error(`deleteLectureAttendance SA: Error deleting attendance for classroom ${classroomId} on ${date}:`, error);
+    throw new Error("Failed to delete attendance records.");
+  }
+}
