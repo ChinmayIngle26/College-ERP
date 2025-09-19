@@ -322,17 +322,21 @@ export default function AdminPage() {
   };
 
   const filteredUsers = useMemo(() => {
-    return usersData.filter(u => {
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = (
-        (u.name || '').toLowerCase().includes(searchLower) ||
-        (u.studentId || '').toLowerCase().includes(searchLower) ||
-        (u.email || '').toLowerCase().includes(searchLower)
+    return usersData
+      .filter(u => {
+        const searchLower = searchTerm.toLowerCase();
+        const matchesSearch = (
+          (u.name || '').toLowerCase().includes(searchLower) ||
+          (u.studentId || '').toLowerCase().includes(searchLower) ||
+          (u.email || '').toLowerCase().includes(searchLower)
+        );
+        const matchesRole = filterRole ? u.role === filterRole : true;
+        const matchesCourse = filterCourse ? u.courseProgram === filterCourse : true;
+        return matchesSearch && matchesRole && matchesCourse;
+      })
+      .sort((a, b) => 
+        (a.studentId || '').localeCompare(b.studentId || '', undefined, { numeric: true })
       );
-      const matchesRole = filterRole ? u.role === filterRole : true;
-      const matchesCourse = filterCourse ? u.courseProgram === filterCourse : true;
-      return matchesSearch && matchesRole && matchesCourse;
-    });
   }, [usersData, searchTerm, filterRole, filterCourse]);
 
   const clearFilters = () => {
@@ -654,5 +658,7 @@ export default function AdminPage() {
   );
 }
 
+
+    
 
     
