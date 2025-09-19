@@ -669,12 +669,12 @@ export default function FacultyAttendancePage() {
                                 <CardHeader>
                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
                                         <CardTitle className="flex items-center gap-2 text-destructive mb-2 sm:mb-0">
-                                            <AlertTriangle /> Low Attendance Report
+                                            <AlertTriangle /> Defaulter List (Low Attendance)
                                         </CardTitle>
                                         <Button variant="secondary" size="sm" onClick={handleDownloadDefaulterReport} disabled={lowAttendanceStudents.length === 0}><Download className="mr-2 h-4 w-4"/>Download List</Button>
                                     </div>
                                     <CardDescription>
-                                        Students with attendance below the set threshold.
+                                        This report shows students with attendance below the set threshold for the selected date range.
                                     </CardDescription>
                                 </CardHeader>
                                 <CardContent>
@@ -802,3 +802,4 @@ export default function FacultyAttendancePage() {
 }
 
     
+
