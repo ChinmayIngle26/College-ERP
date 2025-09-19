@@ -230,7 +230,8 @@ export default function DashboardPage() {
           <SummaryCard
             title="Attendance Percentage"
             value={`${data.attendancePercentage}%`}
-            icon={CheckCircle}
+            icon={data.attendancePercentage < 75 ? AlertTriangle : CheckCircle}
+            variant={data.attendancePercentage < 75 ? 'destructive' : 'default'}
           />
           <SummaryCard
             title="GPA"
