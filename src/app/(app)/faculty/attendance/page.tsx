@@ -222,11 +222,17 @@ export default function FacultyAttendancePage() {
     }, [selectedClassroomId, selectedDate, user, loadingStudents]);
 
     const filteredStudentsToDisplay = useMemo(() => {
-        if (selectedBatchFilter === WHOLE_CLASS_FILTER_VALUE) {
-            return currentStudents;
+        let studentsToDisplay = currentStudents;
+
+        if (selectedBatchFilter !== WHOLE_CLASS_FILTER_VALUE) {
+            studentsToDisplay = currentStudents.filter(student => student.batch === selectedBatchFilter);
         }
-        return currentStudents.filter(student => student.batch === selectedBatchFilter);
+        
+        return studentsToDisplay.sort((a, b) => 
+            (a.studentIdNumber || '').localeCompare(b.studentIdNumber || '', undefined, { numeric: true })
+        );
     }, [currentStudents, selectedBatchFilter]);
+
 
     useEffect(() => {
         if (loadingStudents || isEditing) return;
