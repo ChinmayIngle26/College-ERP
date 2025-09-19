@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarIcon, CheckCircle, User, Users, BookOpen, Loader2, Search, Download, AlertTriangle } from 'lucide-react';
+import { CalendarIcon, CheckCircle, User, Users, BookOpen, Loader2, Search, Download, AlertTriangle, Lightbulb } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { format, isValid } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -26,7 +26,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { exportDataToCsv } from '@/lib/csv-exporter';
 import { Slider } from '@/components/ui/slider';
-
+import { analyzeAttendance } from '@/ai/flows/analyze-attendance-flow';
+import type { AttendanceAnalysisOutput } from '@/types/attendance-analysis';
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 type StudentAttendanceStatus = {
     [studentId: string]: boolean; // true for present, false for absent
@@ -42,6 +44,12 @@ interface LowAttendanceStudent {
 }
 
 const WHOLE_CLASS_FILTER_VALUE = "__WHOLE_CLASS__";
+
+const PIE_CHART_COLORS = {
+    present: 'hsl(var(--chart-1))',
+    absent: 'hsl(var(--chart-4))',
+};
+
 
 export default function FacultyAttendancePage() {
     const { user, loading: authLoading } = useAuth();
@@ -71,6 +79,9 @@ export default function FacultyAttendancePage() {
     const [reportRecords, setReportRecords] = useState<LectureAttendanceRecord[]>([]);
     const [isFetchingRecords, setIsFetchingRecords] = useState(false);
     const [attendanceThreshold, setAttendanceThreshold] = useState<number>(75);
+    const [analysisResult, setAnalysisResult] = useState<AttendanceAnalysisOutput | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+
 
     // Memoize the calculation of student attendance statistics
     const studentStats = useMemo(() => {
@@ -152,6 +163,19 @@ export default function FacultyAttendancePage() {
                 ...dateGroup,
                 lectures: Object.values(dateGroup.lectures)
             }));
+    }, [reportRecords]);
+
+    const pieChartData = useMemo(() => {
+        if (reportRecords.length === 0) return [];
+        const presentCount = reportRecords.filter(r => r.status === 'present').length;
+        const absentCount = reportRecords.filter(r => r.status === 'absent').length;
+        const total = presentCount + absentCount;
+        if (total === 0) return [];
+        
+        return [
+            { name: 'Present', value: presentCount, percentage: ((presentCount / total) * 100).toFixed(1) },
+            { name: 'Absent', value: absentCount, percentage: ((absentCount / total) * 100).toFixed(1) },
+        ];
     }, [reportRecords]);
 
     useEffect(() => {
@@ -400,7 +424,9 @@ export default function FacultyAttendancePage() {
         }
 
         setIsFetchingRecords(true);
+        setIsAnalyzing(true);
         setReportRecords([]);
+        setAnalysisResult(null);
         try {
             const idToken = await clientAuth.currentUser.getIdToken();
             const fetchedRecords = await getLectureAttendanceForDateRange(
@@ -413,12 +439,23 @@ export default function FacultyAttendancePage() {
             
             if (fetchedRecords.length === 0) {
                  toast({ title: "No Records Found", description: "No attendance records were found for the selected classroom and date range."});
+            } else {
+                 // Trigger AI analysis
+                try {
+                    const analysis = await analyzeAttendance(fetchedRecords);
+                    setAnalysisResult(analysis);
+                } catch (aiError) {
+                    console.error("AI Analysis failed:", aiError);
+                    toast({ title: "AI Analysis Failed", description: "Could not generate AI insights for the attendance data.", variant: "default" });
+                    setAnalysisResult(null); // Clear previous results on failure
+                }
             }
         } catch (error) {
             console.error("Error fetching attendance records:", error);
             toast({ title: "Error Fetching Records", description: (error as Error).message || "Could not retrieve attendance records.", variant: "destructive" });
         } finally {
             setIsFetchingRecords(false);
+            setIsAnalyzing(false);
         }
     };
     
@@ -659,135 +696,184 @@ export default function FacultyAttendancePage() {
                         <div className="flex justify-end">
                              <Button onClick={handleViewRecords} disabled={isFetchingRecords || !selectedClassroomId || !startDate || !endDate} className="w-full sm:w-auto">{isFetchingRecords ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}View Records</Button>
                         </div>
-                         {isFetchingRecords && (
-                            <div className="flex items-center justify-center p-6"><Loader2 className="h-6 w-6 animate-spin text-primary" /> <span className="ml-2">Fetching records...</span></div>
+                         {(isFetchingRecords || isAnalyzing) && (
+                            <div className="flex items-center justify-center p-6"><Loader2 className="h-6 w-6 animate-spin text-primary" /> <span className="ml-2">{isFetchingRecords ? 'Fetching records...' : 'Analyzing data...'}</span></div>
                         )}
                         
-                        {!isFetchingRecords && reportRecords.length > 0 && (
-                            <>
-                            <Card className="mt-6 border-destructive">
-                                <CardHeader>
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                                        <CardTitle className="flex items-center gap-2 text-destructive mb-2 sm:mb-0">
-                                            <AlertTriangle /> Defaulter List (Low Attendance)
-                                        </CardTitle>
-                                        <Button variant="secondary" size="sm" onClick={handleDownloadDefaulterReport} disabled={lowAttendanceStudents.length === 0}><Download className="mr-2 h-4 w-4"/>Download List</Button>
-                                    </div>
-                                    <CardDescription>
-                                        This report shows students with attendance below the set threshold for the selected date range.
-                                    </CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="mb-4 space-y-2">
-                                        <Label htmlFor="threshold">Attendance Threshold: <span className="font-bold text-primary">{attendanceThreshold}%</span></Label>
-                                        <div className="flex items-center gap-4">
-                                            <Slider
-                                                id="threshold"
-                                                min={0}
-                                                max={100}
-                                                step={1}
-                                                value={[attendanceThreshold]}
-                                                onValueChange={(value) => setAttendanceThreshold(value[0])}
-                                                className="flex-1"
-                                            />
-                                            <Input 
-                                                type="number" 
-                                                value={attendanceThreshold}
-                                                onChange={handleThresholdInputChange}
-                                                className="w-20"
-                                                min="0" max="100"
-                                            />
+                        {!isFetchingRecords && !isAnalyzing && reportRecords.length > 0 && (
+                            <div className="space-y-6">
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                                    <Card className="lg:col-span-2">
+                                        <CardHeader><CardTitle>AI Attendance Analysis</CardTitle></CardHeader>
+                                        <CardContent>
+                                            {analysisResult ? (
+                                                <div className="space-y-4 text-sm">
+                                                    <div>
+                                                        <h4 className="font-semibold flex items-center gap-2"><Lightbulb className="h-4 w-4 text-yellow-500" /> Overall Summary</h4>
+                                                        <p className="text-muted-foreground mt-1">{analysisResult.overallSummary}</p>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-semibold">Key Observations</h4>
+                                                        <ul className="list-disc list-inside text-muted-foreground mt-1 space-y-1">
+                                                            {analysisResult.keyObservations.map((obs, i) => <li key={`obs-${i}`}>{obs}</li>)}
+                                                        </ul>
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="font-semibold">Actionable Suggestions</h4>
+                                                        <ul className="list-disc list-inside text-muted-foreground mt-1 space-y-1">
+                                                            {analysisResult.actionableSuggestions.map((sug, i) => <li key={`sug-${i}`}>{sug}</li>)}
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <p className="text-muted-foreground text-center py-4">AI analysis is unavailable for this data.</p>
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                    <Card>
+                                        <CardHeader><CardTitle>Overall Attendance</CardTitle></CardHeader>
+                                        <CardContent>
+                                            <div className="h-60 w-full">
+                                                <ResponsiveContainer width="100%" height="100%">
+                                                    <PieChart>
+                                                        <Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(props) => `${props.payload.name}: ${props.payload.percentage}%`}>
+                                                            {pieChartData.map((entry, index) => (
+                                                                <Cell key={`cell-${index}`} fill={entry.name === 'Present' ? PIE_CHART_COLORS.present : PIE_CHART_COLORS.absent} />
+                                                            ))}
+                                                        </Pie>
+                                                        <Tooltip formatter={(value, name, props) => [`${value} lectures (${props.payload.percentage}%)`, name]} />
+                                                        <Legend />
+                                                    </PieChart>
+                                                </ResponsiveContainer>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                </div>
+
+
+                                <Card className="border-destructive">
+                                    <CardHeader>
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                                            <CardTitle className="flex items-center gap-2 text-destructive mb-2 sm:mb-0">
+                                                <AlertTriangle /> Defaulter List (Low Attendance)
+                                            </CardTitle>
+                                            <Button variant="secondary" size="sm" onClick={handleDownloadDefaulterReport} disabled={lowAttendanceStudents.length === 0}><Download className="mr-2 h-4 w-4"/>Download List</Button>
                                         </div>
-                                    </div>
-                                    {lowAttendanceStudents.length > 0 ? (
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Student ID</TableHead>
-                                                <TableHead>Name</TableHead>
-                                                <TableHead>Total Lectures</TableHead>
-                                                <TableHead>Attended</TableHead>
-                                                <TableHead className="text-right">Attendance %</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {lowAttendanceStudents.map(student => (
-                                                <TableRow key={student.studentId}>
-                                                    <TableCell>{student.studentIdNumber}</TableCell>
-                                                    <TableCell>{student.name}</TableCell>
-                                                    <TableCell>{student.totalLectures}</TableCell>
-                                                    <TableCell>{student.attendedLectures}</TableCell>
-                                                    <TableCell className="text-right font-bold">{student.percentage.toFixed(2)}%</TableCell>
+                                        <CardDescription>
+                                            This report shows students with attendance below the set threshold for the selected date range.
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="mb-4 space-y-2">
+                                            <Label htmlFor="threshold">Attendance Threshold: <span className="font-bold text-primary">{attendanceThreshold}%</span></Label>
+                                            <div className="flex items-center gap-4">
+                                                <Slider
+                                                    id="threshold"
+                                                    min={0}
+                                                    max={100}
+                                                    step={1}
+                                                    value={[attendanceThreshold]}
+                                                    onValueChange={(value) => setAttendanceThreshold(value[0])}
+                                                    className="flex-1"
+                                                />
+                                                <Input 
+                                                    type="number" 
+                                                    value={attendanceThreshold}
+                                                    onChange={handleThresholdInputChange}
+                                                    className="w-20"
+                                                    min="0" max="100"
+                                                />
+                                            </div>
+                                        </div>
+                                        {lowAttendanceStudents.length > 0 ? (
+                                        <Table>
+                                            <TableHeader>
+                                                <TableRow>
+                                                    <TableHead>Student ID</TableHead>
+                                                    <TableHead>Name</TableHead>
+                                                    <TableHead>Total Lectures</TableHead>
+                                                    <TableHead>Attended</TableHead>
+                                                    <TableHead className="text-right">Attendance %</TableHead>
                                                 </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                    ) : (
-                                        <p className="text-center text-muted-foreground py-4">No students are below the {attendanceThreshold}% threshold.</p>
-                                    )}
-                                </CardContent>
-                            </Card>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {lowAttendanceStudents.map(student => (
+                                                    <TableRow key={student.studentId}>
+                                                        <TableCell>{student.studentIdNumber}</TableCell>
+                                                        <TableCell>{student.name}</TableCell>
+                                                        <TableCell>{student.totalLectures}</TableCell>
+                                                        <TableCell>{student.attendedLectures}</TableCell>
+                                                        <TableCell className="text-right font-bold">{student.percentage.toFixed(2)}%</TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                        ) : (
+                                            <p className="text-center text-muted-foreground py-4">No students are below the {attendanceThreshold}% threshold.</p>
+                                        )}
+                                    </CardContent>
+                                </Card>
                             
-                            <Card className="mt-6">
-                                <CardHeader>
-                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                                        <CardTitle>Detailed Daily Records</CardTitle>
-                                        <Button variant="outline" size="sm" onClick={handleDownloadReport}><Download className="mr-2 h-4 w-4"/>Download Full Report</Button>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <Accordion type="single" collapsible className="w-full space-y-2">
-                                        {groupedReportRecords.map((dateGroup, index) => (
-                                            <AccordionItem value={`date-${index}`} key={dateGroup.date} className="border rounded-lg px-4 bg-muted/20">
-                                                <AccordionTrigger className="hover:no-underline">
-                                                    <div className="text-left">
-                                                        <span className="font-semibold text-primary">{format(new Date(dateGroup.date), 'PPP')}</span>
-                                                        <span className="text-sm text-muted-foreground ml-4">{dateGroup.lectures.length} lecture(s) recorded</span>
-                                                    </div>
-                                                </AccordionTrigger>
-                                                <AccordionContent>
-                                                    <div className="space-y-4 pt-2">
-                                                        {dateGroup.lectures.map((lecture, lectureIndex) => (
-                                                            <div key={lecture.lectureName + lectureIndex} className="border rounded-md p-4 bg-background">
-                                                                <div className="mb-2">
-                                                                    <h4 className="font-semibold">{lecture.lectureName}</h4>
-                                                                    <p className="text-sm text-muted-foreground">Marked by: {lecture.facultyName}</p>
-                                                                </div>
-                                                                <div className="overflow-x-auto border rounded-md">
-                                                                    <Table>
-                                                                        <TableHeader>
-                                                                            <TableRow>
-                                                                                <TableHead>Student Name</TableHead>
-                                                                                <TableHead>Roll No.</TableHead>
-                                                                                <TableHead>Status</TableHead>
-                                                                                <TableHead>Batch</TableHead>
-                                                                            </TableRow>
-                                                                        </TableHeader>
-                                                                        <TableBody>
-                                                                            {lecture.records.sort((a, b) => (a.studentName || '').localeCompare(b.studentName || '')).map((record: LectureAttendanceRecord) => (
-                                                                                <TableRow key={record.id}>
-                                                                                    <TableCell>{record.studentName}</TableCell>
-                                                                                    <TableCell>{record.studentIdNumber || 'N/A'}</TableCell>
-                                                                                    <TableCell className={cn(record.status === 'present' ? 'text-green-600' : 'text-red-600', 'font-medium')}>{record.status.charAt(0).toUpperCase() + record.status.slice(1)}</TableCell>
-                                                                                    <TableCell>{record.batch || 'N/A'}</TableCell>
+                                <Card>
+                                    <CardHeader>
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                                            <CardTitle>Detailed Daily Records</CardTitle>
+                                            <Button variant="outline" size="sm" onClick={handleDownloadReport}><Download className="mr-2 h-4 w-4"/>Download Full Report</Button>
+                                        </div>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Accordion type="single" collapsible className="w-full space-y-2">
+                                            {groupedReportRecords.map((dateGroup, index) => (
+                                                <AccordionItem value={`date-${index}`} key={dateGroup.date} className="border rounded-lg px-4 bg-muted/20">
+                                                    <AccordionTrigger className="hover:no-underline">
+                                                        <div className="text-left">
+                                                            <span className="font-semibold text-primary">{format(new Date(dateGroup.date), 'PPP')}</span>
+                                                            <span className="text-sm text-muted-foreground ml-4">{dateGroup.lectures.length} lecture(s) recorded</span>
+                                                        </div>
+                                                    </AccordionTrigger>
+                                                    <AccordionContent>
+                                                        <div className="space-y-4 pt-2">
+                                                            {dateGroup.lectures.map((lecture, lectureIndex) => (
+                                                                <div key={lecture.lectureName + lectureIndex} className="border rounded-md p-4 bg-background">
+                                                                    <div className="mb-2">
+                                                                        <h4 className="font-semibold">{lecture.lectureName}</h4>
+                                                                        <p className="text-sm text-muted-foreground">Marked by: {lecture.facultyName}</p>
+                                                                    </div>
+                                                                    <div className="overflow-x-auto border rounded-md">
+                                                                        <Table>
+                                                                            <TableHeader>
+                                                                                <TableRow>
+                                                                                    <TableHead>Student Name</TableHead>
+                                                                                    <TableHead>Roll No.</TableHead>
+                                                                                    <TableHead>Status</TableHead>
+                                                                                    <TableHead>Batch</TableHead>
                                                                                 </TableRow>
-                                                                            ))}
-                                                                        </TableBody>
-                                                                    </Table>
+                                                                            </TableHeader>
+                                                                            <TableBody>
+                                                                                {lecture.records.sort((a, b) => (a.studentName || '').localeCompare(b.studentName || '')).map((record: LectureAttendanceRecord) => (
+                                                                                    <TableRow key={record.id}>
+                                                                                        <TableCell>{record.studentName}</TableCell>
+                                                                                        <TableCell>{record.studentIdNumber || 'N/A'}</TableCell>
+                                                                                        <TableCell className={cn(record.status === 'present' ? 'text-green-600' : 'text-red-600', 'font-medium')}>{record.status.charAt(0).toUpperCase() + record.status.slice(1)}</TableCell>
+                                                                                        <TableCell>{record.batch || 'N/A'}</TableCell>
+                                                                                    </TableRow>
+                                                                                ))}
+                                                                            </TableBody>
+                                                                        </Table>
+                                                                    </div>
                                                                 </div>
-                                                            </div>
-                                                        ))}
-                                                    </div>
-                                                </AccordionContent>
-                                            </AccordionItem>
-                                        ))}
-                                    </Accordion>
-                                </CardContent>
-                            </Card>
-                            </>
+                                                            ))}
+                                                        </div>
+                                                    </AccordionContent>
+                                                </AccordionItem>
+                                            ))}
+                                        </Accordion>
+                                    </CardContent>
+                                </Card>
+                            </div>
                         )}
 
-                        {!isFetchingRecords && reportRecords.length === 0 && (
+                        {!isFetchingRecords && !isAnalyzing && reportRecords.length === 0 && (
                             <div className="text-center text-muted-foreground pt-6">
                                 <p>No records to display. Select a classroom and date range, then click "View Records".</p>
                             </div>
@@ -800,6 +886,3 @@ export default function FacultyAttendancePage() {
     </>
   );
 }
-
-    
-
