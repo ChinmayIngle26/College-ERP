@@ -12,11 +12,11 @@ import { Input } from '@/components/ui/input';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Save, UserSearch, PlusCircle, Trash2 } from 'lucide-react';
+import { Loader2, Save, UserSearch, PlusCircle, Trash2, Users } from 'lucide-react';
 import { auth as clientAuth } from '@/lib/firebase/client';
-import { searchStudents } from '@/services/classroomService';
+import { getClassroomsByFaculty, getStudentsInClassroom } from '@/services/classroomService';
 import { getGrades, updateStudentGrade, getUniqueCourseNames, deleteStudentGrade } from '@/services/grades';
-import type { StudentSearchResultItem } from '@/types/classroom';
+import type { Classroom, ClassroomStudentInfo } from '@/types/classroom';
 import type { Grade } from '@/types/grades';
 
 export default function ManageGradesPage() {
@@ -24,11 +24,14 @@ export default function ManageGradesPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  const [searchTerm, setSearchTerm] = useState('');
-  const [searchResults, setSearchResults] = useState<StudentSearchResultItem[]>([]);
-  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [classrooms, setClassrooms] = useState<Classroom[]>([]);
+  const [loadingClassrooms, setLoadingClassrooms] = useState(true);
+  const [selectedClassroomId, setSelectedClassroomId] = useState<string | undefined>();
+  
+  const [studentsInClassroom, setStudentsInClassroom] = useState<ClassroomStudentInfo[]>([]);
+  const [loadingStudents, setLoadingStudents] = useState(false);
 
-  const [selectedStudent, setSelectedStudent] = useState<StudentSearchResultItem | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<ClassroomStudentInfo | null>(null);
   const [studentGrades, setStudentGrades] = useState<Grade[]>([]);
   const [loadingGrades, setLoadingGrades] = useState(false);
 
@@ -40,49 +43,60 @@ export default function ManageGradesPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const fetchCourses = async () => {
-      if (!user || !clientAuth.currentUser) return;
-      try {
-        const idToken = await clientAuth.currentUser.getIdToken();
-        const courses = await getUniqueCourseNames(idToken);
-        setUniqueCourses(courses);
-      } catch (error) {
-        toast({ title: "Error", description: "Could not fetch existing course names.", variant: "destructive" });
-      }
-    };
     if (user && !authLoading) {
-      fetchCourses();
+      fetchFacultyClassrooms();
+      fetchUniqueCourses();
     }
-  }, [user, authLoading, toast]);
-  
-  const handleSearchStudents = async () => {
-    if (!searchTerm.trim() || !user || !clientAuth.currentUser) return;
-    setLoadingSearch(true);
+  }, [user, authLoading]);
+
+  const fetchFacultyClassrooms = async () => {
+    if (!user || !clientAuth.currentUser) return;
+    setLoadingClassrooms(true);
     try {
-      // Note: searchStudents requires a classroomId, which we don't have here.
-      // This service method needs to be adapted or a new one created.
-      // For now, let's assume a global student search exists or adapt it.
-      // We will pass a dummy classroomId, and the service will ignore it for this type of search.
       const idToken = await clientAuth.currentUser.getIdToken();
-      const results = await searchStudents(idToken, '__GLOBAL_SEARCH__', searchTerm);
-      setSearchResults(results);
-      if (results.length === 0) {
-        toast({ title: "No Results", description: "No students found matching your search." });
-      }
+      const fetchedClassrooms = await getClassroomsByFaculty(idToken);
+      setClassrooms(fetchedClassrooms);
     } catch (error) {
-      toast({ title: "Search Error", description: (error as Error).message, variant: "destructive" });
+      toast({ title: "Error", description: "Could not load your classrooms.", variant: "destructive" });
     } finally {
-      setLoadingSearch(false);
+      setLoadingClassrooms(false);
+    }
+  };
+  
+  const fetchUniqueCourses = async () => {
+    if (!user || !clientAuth.currentUser) return;
+    try {
+      const idToken = await clientAuth.currentUser.getIdToken();
+      const courses = await getUniqueCourseNames(idToken);
+      setUniqueCourses(courses);
+    } catch (error) {
+      toast({ title: "Error", description: "Could not fetch existing course names.", variant: "destructive" });
     }
   };
 
-  const selectStudentForGrading = async (student: StudentSearchResultItem) => {
+  const handleClassroomSelect = async (classroomId: string) => {
+    setSelectedClassroomId(classroomId);
+    setSelectedStudent(null);
+    setStudentsInClassroom([]);
+    if (!classroomId || !clientAuth.currentUser) return;
+    
+    setLoadingStudents(true);
+    try {
+      const idToken = await clientAuth.currentUser.getIdToken();
+      const students = await getStudentsInClassroom(idToken, classroomId);
+      setStudentsInClassroom(students);
+    } catch (error) {
+      toast({ title: "Error", description: "Could not load students for this classroom.", variant: "destructive" });
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  const selectStudentForGrading = async (student: ClassroomStudentInfo) => {
     setSelectedStudent(student);
-    setSearchResults([]);
-    setSearchTerm('');
     setLoadingGrades(true);
     try {
-      const fetchedGrades = await getGrades(student.uid);
+      const fetchedGrades = await getGrades(student.userId);
       setStudentGrades(fetchedGrades);
     } catch (error) {
       toast({ title: "Error", description: `Could not fetch grades for ${student.name}.`, variant: "destructive" });
@@ -105,19 +119,15 @@ export default function ManageGradesPage() {
         await updateStudentGrade(idToken, { studentId, courseName: courseName.trim(), grade });
         toast({ title: "Grade Saved", description: `Grade for ${courseName.trim()} saved successfully.` });
         
-        // Refresh grades for the selected student
         if (selectedStudent) {
             selectStudentForGrading(selectedStudent);
         }
-        // Reset new grade form if it was used
         if (isAddingNewGrade) {
             setIsAddingNewGrade(false);
             setNewGradeInfo({ courseName: '', grade: '' });
             setCustomCourseName('');
         }
-        // Refresh unique courses list
-        const courses = await getUniqueCourseNames(idToken);
-        setUniqueCourses(courses);
+        fetchUniqueCourses();
 
     } catch (error) {
         toast({ title: "Error Saving Grade", description: (error as Error).message, variant: "destructive" });
@@ -134,7 +144,7 @@ export default function ManageGradesPage() {
         const idToken = await clientAuth.currentUser.getIdToken();
         await deleteStudentGrade(idToken, gradeId);
         toast({ title: "Grade Deleted", description: "The grade has been successfully deleted." });
-        selectStudentForGrading(selectedStudent); // Refresh grades
+        selectStudentForGrading(selectedStudent);
     } catch (error) {
         toast({ title: "Error Deleting Grade", description: (error as Error).message, variant: "destructive" });
     } finally {
@@ -151,136 +161,155 @@ export default function ManageGradesPage() {
         <Card>
           <CardHeader>
             <CardTitle>Manage Student Grades</CardTitle>
-            <CardDescription>Search for a student to view, add, or update their grades for any subject.</CardDescription>
+            <CardDescription>Select a classroom to view its students and manage their grades.</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-2 max-w-lg mb-4">
-              <Input
-                type="search"
-                placeholder="Search students by name, email, or ID..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSearchStudents()}
-              />
-              <Button onClick={handleSearchStudents} disabled={loadingSearch || !searchTerm.trim()}>
-                {loadingSearch ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserSearch className="mr-2 h-4 w-4" />} Search
-              </Button>
+            <div className="max-w-md">
+                <Select value={selectedClassroomId} onValueChange={handleClassroomSelect} disabled={loadingClassrooms || classrooms.length === 0}>
+                    <SelectTrigger id="classroom-select">
+                        <SelectValue placeholder={loadingClassrooms ? "Loading classrooms..." : "Select a classroom"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                        {classrooms.map(cr => (<SelectItem key={cr.id} value={cr.id}>{cr.name} ({cr.subject})</SelectItem>))}
+                    </SelectContent>
+                </Select>
             </div>
-
-            {loadingSearch && <Skeleton className="h-20 w-full" />}
-
-            {searchResults.length > 0 && (
-              <Card className="mt-4">
-                <CardHeader><CardTitle className="text-base">Search Results</CardTitle></CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableBody>
-                      {searchResults.map(student => (
-                        <TableRow key={student.uid}>
-                          <TableCell>{student.name}</TableCell>
-                          <TableCell>{student.studentId}</TableCell>
-                          <TableCell>{student.email}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="outline" size="sm" onClick={() => selectStudentForGrading(student)}>
-                              Manage Grades
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </CardContent>
-              </Card>
-            )}
           </CardContent>
         </Card>
 
-        {selectedStudent && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Grading for: {selectedStudent.name}</CardTitle>
-              <CardDescription>Student ID: {selectedStudent.studentId}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingGrades ? (
-                <Skeleton className="h-40 w-full" />
-              ) : (
-                <div className="space-y-4">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Course / Subject</TableHead>
-                        <TableHead>Grade</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {studentGrades.map(grade => (
-                        <TableRow key={grade.id}>
-                          <TableCell>{grade.courseName}</TableCell>
-                          <TableCell>{grade.grade}</TableCell>
-                          <TableCell className="text-right">
-                            <Button variant="ghost" size="icon" disabled={isSubmitting} onClick={() => handleDeleteGrade(grade.id!)}>
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                      
-                      {isAddingNewGrade && (
-                        <TableRow>
-                          <TableCell>
-                            {newGradeInfo.courseName === '__CUSTOM__' ? (
-                                <Input 
-                                    placeholder="Enter new course name" 
-                                    value={customCourseName}
-                                    onChange={(e) => setCustomCourseName(e.target.value)}
-                                />
-                            ) : (
-                                <Select
-                                    value={newGradeInfo.courseName}
-                                    onValueChange={(value) => setNewGradeInfo(prev => ({ ...prev, courseName: value }))}
-                                >
-                                    <SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger>
-                                    <SelectContent>
-                                        {uniqueCourses.map(course => <SelectItem key={course} value={course}>{course}</SelectItem>)}
-                                        <SelectItem value="__CUSTOM__">Add new course...</SelectItem>
-                                    </SelectContent>
-                                </Select>
+        {selectedClassroomId && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5" /> Students
+                  </CardTitle>
+                  <CardDescription>Select a student to manage their grades.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loadingStudents ? <Skeleton className="h-40 w-full" /> : 
+                    studentsInClassroom.length > 0 ? (
+                        <div className="overflow-auto max-h-[60vh] relative">
+                            <Table>
+                                <TableBody>
+                                    {studentsInClassroom.map(student => (
+                                        <TableRow 
+                                            key={student.userId} 
+                                            onClick={() => selectStudentForGrading(student)}
+                                            className={cn("cursor-pointer", selectedStudent?.userId === student.userId && "bg-muted")}
+                                        >
+                                            <TableCell>
+                                                <div>{student.name}</div>
+                                                <div className="text-xs text-muted-foreground">{student.studentIdNumber}</div>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </div>
+                    ) : (
+                        <p className="text-center text-muted-foreground">No students in this classroom.</p>
+                    )
+                  }
+                </CardContent>
+              </Card>
+            </div>
+            
+            <div className="lg:col-span-2">
+              {selectedStudent ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Grading for: {selectedStudent.name}</CardTitle>
+                    <CardDescription>Student ID: {selectedStudent.studentIdNumber}</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    {loadingGrades ? <Skeleton className="h-40 w-full" /> : (
+                      <div className="space-y-4">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Course / Subject</TableHead>
+                              <TableHead>Grade</TableHead>
+                              <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {studentGrades.map(grade => (
+                              <TableRow key={grade.id}>
+                                <TableCell>{grade.courseName}</TableCell>
+                                <TableCell>{grade.grade}</TableCell>
+                                <TableCell className="text-right">
+                                  <Button variant="ghost" size="icon" disabled={isSubmitting} onClick={() => handleDeleteGrade(grade.id!)}>
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            
+                            {isAddingNewGrade && (
+                              <TableRow>
+                                <TableCell>
+                                  {newGradeInfo.courseName === '__CUSTOM__' ? (
+                                      <Input 
+                                          placeholder="Enter new course name" 
+                                          value={customCourseName}
+                                          onChange={(e) => setCustomCourseName(e.target.value)}
+                                      />
+                                  ) : (
+                                      <Select
+                                          value={newGradeInfo.courseName}
+                                          onValueChange={(value) => setNewGradeInfo(prev => ({ ...prev, courseName: value }))}
+                                      >
+                                          <SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger>
+                                          <SelectContent>
+                                              {uniqueCourses.map(course => <SelectItem key={course} value={course}>{course}</SelectItem>)}
+                                              <SelectItem value="__CUSTOM__">Add new course...</SelectItem>
+                                          </SelectContent>
+                                      </Select>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  <Input 
+                                      placeholder="Enter grade"
+                                      value={newGradeInfo.grade}
+                                      onChange={(e) => setNewGradeInfo(prev => ({...prev, grade: e.target.value.toUpperCase()}))}
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right space-x-2">
+                                   <Button size="sm" disabled={isSubmitting} onClick={() => handleSaveGrade(
+                                      selectedStudent.userId, 
+                                      newGradeInfo.courseName === '__CUSTOM__' ? customCourseName : newGradeInfo.courseName,
+                                      newGradeInfo.grade
+                                   )}>
+                                      <Save className="h-4 w-4" />
+                                   </Button>
+                                   <Button variant="outline" size="sm" onClick={() => { setIsAddingNewGrade(false); setNewGradeInfo({ courseName: '', grade: '' }); setCustomCourseName(''); }}>
+                                      Cancel
+                                   </Button>
+                                </TableCell>
+                              </TableRow>
                             )}
-                          </TableCell>
-                          <TableCell>
-                            <Input 
-                                placeholder="Enter grade"
-                                value={newGradeInfo.grade}
-                                onChange={(e) => setNewGradeInfo(prev => ({...prev, grade: e.target.value.toUpperCase()}))}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right space-x-2">
-                             <Button size="sm" disabled={isSubmitting} onClick={() => handleSaveGrade(
-                                selectedStudent.uid, 
-                                newGradeInfo.courseName === '__CUSTOM__' ? customCourseName : newGradeInfo.courseName,
-                                newGradeInfo.grade
-                             )}>
-                                <Save className="h-4 w-4" />
-                             </Button>
-                             <Button variant="outline" size="sm" onClick={() => { setIsAddingNewGrade(false); setNewGradeInfo({ courseName: '', grade: '' }); setCustomCourseName(''); }}>
-                                Cancel
-                             </Button>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                  {!isAddingNewGrade && (
-                    <Button variant="outline" onClick={() => setIsAddingNewGrade(true)}>
-                      <PlusCircle className="mr-2 h-4 w-4" /> Add New Grade
-                    </Button>
-                  )}
-                </div>
+                          </TableBody>
+                        </Table>
+                        {!isAddingNewGrade && (
+                          <Button variant="outline" onClick={() => setIsAddingNewGrade(true)}>
+                            <PlusCircle className="mr-2 h-4 w-4" /> Add New Grade
+                          </Button>
+                        )}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              ) : (
+                <Card className="flex items-center justify-center h-full min-h-[20rem]">
+                    <div className="text-center text-muted-foreground">
+                        <p>Select a student from the list to manage their grades.</p>
+                    </div>
+                </Card>
               )}
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         )}
       </div>
     </>

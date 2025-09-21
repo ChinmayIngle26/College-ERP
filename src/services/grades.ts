@@ -7,7 +7,8 @@ import { FieldValue as AdminFieldValue } from 'firebase-admin/firestore';
 
 /**
  * Retrieves the grades for a given student.
- * This is a Server Action intended to be called from the student's grade viewing page.
+ * This is a Server Action intended to be called from the student's grade viewing page
+ * and the faculty's grade management page for a specific student.
  * @param studentId The UID of the student whose grades are to be fetched.
  * @returns A promise that resolves to an array of Grade objects.
  */
@@ -43,6 +44,7 @@ export async function getGrades(studentId: string): Promise<Grade[]> {
     throw new Error("Could not fetch grades.");
   }
 }
+
 
 /**
  * Retrieves all unique course names from the grades collection.
@@ -145,3 +147,4 @@ export async function deleteStudentGrade(idToken: string, gradeId: string): Prom
 
 // This function is no longer needed as grades are decoupled from classrooms
 // export async function getGradesForClassroom(idToken: string, classroomId: string, courseName: string): Promise<Grade[]> { ... }
+
