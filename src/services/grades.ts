@@ -45,6 +45,61 @@ export async function getGrades(studentId: string): Promise<Grade[]> {
   }
 }
 
+/**
+ * Retrieves all grades for a list of student UIDs.
+ * This is a Server Action for faculty to generate a classroom-wide grade report.
+ * @param idToken - Faculty's Firebase ID token.
+ * @param studentUids - An array of student UIDs.
+ * @returns A promise that resolves to an array of Grade objects for all specified students.
+ */
+export async function getGradesForClassroom(idToken: string, studentUids: string[]): Promise<Grade[]> {
+    if (adminInitializationError) {
+        throw new Error("Server error: Admin SDK initialization failed.");
+    }
+    if (!adminDb || !adminAuth) {
+        throw new Error("Server error: Admin services not initialized.");
+    }
+    try {
+        await adminAuth.verifyIdToken(idToken);
+    } catch (error) {
+        throw new Error("Authentication failed.");
+    }
+    
+    if (studentUids.length === 0) {
+        return [];
+    }
+
+    try {
+        const gradesCollectionRef = adminDb.collection('grades');
+        // Firestore 'in' queries are limited to 30 elements per query.
+        // We need to chunk the studentUids array if it's larger than that.
+        const chunks: string[][] = [];
+        for (let i = 0; i < studentUids.length; i += 30) {
+            chunks.push(studentUids.slice(i, i + 30));
+        }
+
+        const allGrades: Grade[] = [];
+        for (const chunk of chunks) {
+            const q = gradesCollectionRef.where('studentId', 'in', chunk);
+            const snapshot = await q.get();
+            snapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                allGrades.push({
+                    id: docSnap.id,
+                    ...data,
+                    updatedAt: data.updatedAt.toDate(),
+                } as Grade);
+            });
+        }
+        
+        return allGrades;
+
+    } catch (error) {
+        console.error("Error fetching grades for classroom:", error);
+        throw new Error("Could not fetch classroom grades.");
+    }
+}
+
 
 /**
  * Retrieves all unique course names from the grades collection.
