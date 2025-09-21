@@ -18,6 +18,7 @@ import { getClassroomsByFaculty, getStudentsInClassroom } from '@/services/class
 import { getGrades, updateStudentGrade, getUniqueCourseNames, deleteStudentGrade } from '@/services/grades';
 import type { Classroom, ClassroomStudentInfo } from '@/types/classroom';
 import type { Grade } from '@/types/grades';
+import { cn } from '@/lib/utils';
 
 export default function ManageGradesPage() {
   const { user, loading: authLoading } = useAuth();
