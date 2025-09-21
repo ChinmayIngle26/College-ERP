@@ -185,25 +185,25 @@ export default function ManageGradesPage() {
 
   const classroomReportData = useMemo(() => {
     if (studentsInClassroom.length === 0) return { subjects: [], rows: [] };
-
+  
     const subjects = Array.from(new Set(classroomGrades.map(g => g.courseName))).sort();
-    const studentGradeMap = new Map<string, Record<string, string>>();
-
+    const studentGradeMap = new Map<string, Record<string, { grade: string, maxMarks?: number }>>();
+  
     classroomGrades.forEach(grade => {
-        if (!studentGradeMap.has(grade.studentId)) {
-            studentGradeMap.set(grade.studentId, {});
-        }
-        studentGradeMap.get(grade.studentId)![grade.courseName] = grade.grade;
+      if (!studentGradeMap.has(grade.studentId)) {
+        studentGradeMap.set(grade.studentId, {});
+      }
+      studentGradeMap.get(grade.studentId)![grade.courseName] = { grade: grade.grade, maxMarks: grade.maxMarks };
     });
-
+  
     const rows = studentsInClassroom.map(student => {
-        const grades = studentGradeMap.get(student.userId) || {};
-        return {
-            ...student,
-            grades,
-        };
+      const grades = studentGradeMap.get(student.userId) || {};
+      return {
+        ...student,
+        grades,
+      };
     });
-
+  
     return { subjects, rows };
   }, [studentsInClassroom, classroomGrades]);
   
@@ -220,7 +220,14 @@ export default function ManageGradesPage() {
             'Name': row.name,
         };
         subjects.forEach(subject => {
-            studentData[subject] = row.grades[subject] || 'N/A';
+            const gradeInfo = row.grades[subject];
+            if (gradeInfo) {
+              studentData[subject] = gradeInfo.maxMarks 
+                ? `${gradeInfo.grade} / ${gradeInfo.maxMarks}` 
+                : gradeInfo.grade;
+            } else {
+              studentData[subject] = 'N/A';
+            }
         });
         return studentData;
     });
@@ -438,9 +445,13 @@ export default function ManageGradesPage() {
                                                 <TableRow key={row.userId}>
                                                     <TableCell>{row.studentIdNumber}</TableCell>
                                                     <TableCell>{row.name}</TableCell>
-                                                    {classroomReportData.subjects.map(subject => (
-                                                        <TableCell key={subject}>{row.grades[subject] || 'N/A'}</TableCell>
-                                                    ))}
+                                                    {classroomReportData.subjects.map(subject => {
+                                                        const gradeInfo = row.grades[subject];
+                                                        const displayValue = gradeInfo 
+                                                            ? (gradeInfo.maxMarks ? `${gradeInfo.grade} / ${gradeInfo.maxMarks}` : gradeInfo.grade)
+                                                            : 'N/A';
+                                                        return <TableCell key={subject}>{displayValue}</TableCell>;
+                                                    })}
                                                 </TableRow>
                                             ))}
                                         </TableBody>
