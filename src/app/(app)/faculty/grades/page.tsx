@@ -85,7 +85,11 @@ export default function ManageGradesPage() {
     try {
       const idToken = await clientAuth.currentUser.getIdToken();
       const students = await getStudentsInClassroom(idToken, classroomId);
-      setStudentsInClassroom(students);
+      // Sort students by studentIdNumber (roll number)
+      const sortedStudents = students.sort((a, b) => 
+        (a.studentIdNumber || '').localeCompare(b.studentIdNumber || '', undefined, { numeric: true })
+      );
+      setStudentsInClassroom(sortedStudents);
     } catch (error) {
       toast({ title: "Error", description: "Could not load students for this classroom.", variant: "destructive" });
     } finally {
