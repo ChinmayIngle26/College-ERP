@@ -9,6 +9,7 @@ export interface Grade {
   studentId: string; // The UID of the student
   courseName: string;
   grade: string;
+  maxMarks?: number; // Maximum marks for the assessment
   facultyId: string; // The UID of the faculty member who entered the grade
   updatedAt: Timestamp | Date;
 }

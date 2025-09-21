@@ -38,7 +38,7 @@ export default function ManageGradesPage() {
 
   const [uniqueCourses, setUniqueCourses] = useState<string[]>([]);
   const [isAddingNewGrade, setIsAddingNewGrade] = useState(false);
-  const [newGradeInfo, setNewGradeInfo] = useState({ courseName: '', grade: '' });
+  const [newGradeInfo, setNewGradeInfo] = useState({ courseName: '', grade: '', maxMarks: '' });
   const [customCourseName, setCustomCourseName] = useState('');
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -111,7 +111,7 @@ export default function ManageGradesPage() {
     }
   };
 
-  const handleSaveGrade = async (studentId: string, courseName: string, grade: string) => {
+  const handleSaveGrade = async (studentId: string, courseName: string, grade: string, maxMarks: number | undefined) => {
     if (!user || !clientAuth.currentUser) return;
     if (!courseName.trim() || !grade.trim()) {
         toast({ title: "Validation Error", description: "Course name and grade cannot be empty.", variant: "destructive" });
@@ -121,7 +121,7 @@ export default function ManageGradesPage() {
     setIsSubmitting(true);
     try {
         const idToken = await clientAuth.currentUser.getIdToken();
-        await updateStudentGrade(idToken, { studentId, courseName: courseName.trim(), grade });
+        await updateStudentGrade(idToken, { studentId, courseName: courseName.trim(), grade, maxMarks });
         toast({ title: "Grade Saved", description: `Grade for ${courseName.trim()} saved successfully.` });
         
         if (selectedStudent) {
@@ -129,7 +129,7 @@ export default function ManageGradesPage() {
         }
         if (isAddingNewGrade) {
             setIsAddingNewGrade(false);
-            setNewGradeInfo({ courseName: '', grade: '' });
+            setNewGradeInfo({ courseName: '', grade: '', maxMarks: '' });
             setCustomCourseName('');
         }
         fetchUniqueCourses();
@@ -236,6 +236,7 @@ export default function ManageGradesPage() {
                             <TableRow>
                               <TableHead>Course / Subject</TableHead>
                               <TableHead>Grade</TableHead>
+                              <TableHead>Max Marks</TableHead>
                               <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                           </TableHeader>
@@ -244,6 +245,7 @@ export default function ManageGradesPage() {
                               <TableRow key={grade.id}>
                                 <TableCell>{grade.courseName}</TableCell>
                                 <TableCell>{grade.grade}</TableCell>
+                                <TableCell>{grade.maxMarks ?? 'N/A'}</TableCell>
                                 <TableCell className="text-right">
                                   <Button variant="ghost" size="icon" disabled={isSubmitting} onClick={() => handleDeleteGrade(grade.id!)}>
                                     <Trash2 className="h-4 w-4 text-destructive" />
@@ -281,15 +283,24 @@ export default function ManageGradesPage() {
                                       onChange={(e) => setNewGradeInfo(prev => ({...prev, grade: e.target.value.toUpperCase()}))}
                                   />
                                 </TableCell>
+                                <TableCell>
+                                  <Input 
+                                      type="number"
+                                      placeholder="e.g., 100"
+                                      value={newGradeInfo.maxMarks}
+                                      onChange={(e) => setNewGradeInfo(prev => ({...prev, maxMarks: e.target.value}))}
+                                  />
+                                </TableCell>
                                 <TableCell className="text-right space-x-2">
                                    <Button size="sm" disabled={isSubmitting} onClick={() => handleSaveGrade(
                                       selectedStudent.userId, 
                                       newGradeInfo.courseName === '__CUSTOM__' ? customCourseName : newGradeInfo.courseName,
-                                      newGradeInfo.grade
+                                      newGradeInfo.grade,
+                                      newGradeInfo.maxMarks !== '' ? Number(newGradeInfo.maxMarks) : undefined
                                    )}>
                                       <Save className="h-4 w-4" />
                                    </Button>
-                                   <Button variant="outline" size="sm" onClick={() => { setIsAddingNewGrade(false); setNewGradeInfo({ courseName: '', grade: '' }); setCustomCourseName(''); }}>
+                                   <Button variant="outline" size="sm" onClick={() => { setIsAddingNewGrade(false); setNewGradeInfo({ courseName: '', grade: '', maxMarks: '' }); setCustomCourseName(''); }}>
                                       Cancel
                                    </Button>
                                 </TableCell>

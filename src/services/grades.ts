@@ -100,7 +100,7 @@ export async function updateStudentGrade(idToken: string, gradeInfo: Omit<Grade,
         throw new Error("Authentication failed.");
     }
 
-    const { studentId, courseName, grade } = gradeInfo;
+    const { studentId, courseName, grade, maxMarks } = gradeInfo;
 
     // Use a composite ID for the grade document to ensure one grade per student per course
     const gradeDocId = `${studentId}_${courseName.trim().replace(/\s+/g, '-')}`;
@@ -108,7 +108,10 @@ export async function updateStudentGrade(idToken: string, gradeInfo: Omit<Grade,
 
     try {
         await gradeDocRef.set({
-            ...gradeInfo,
+            studentId,
+            courseName,
+            grade,
+            maxMarks: maxMarks ?? null, // Save maxMarks or null if undefined
             facultyId,
             updatedAt: AdminFieldValue.serverTimestamp(),
         }, { merge: true });
@@ -147,4 +150,3 @@ export async function deleteStudentGrade(idToken: string, gradeId: string): Prom
 
 // This function is no longer needed as grades are decoupled from classrooms
 // export async function getGradesForClassroom(idToken: string, classroomId: string, courseName: string): Promise<Grade[]> { ... }
-
