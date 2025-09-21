@@ -17,7 +17,7 @@ The application is built on a modern, robust, and scalable technology stack:
     -   **Tailwind CSS**: A utility-first CSS framework for rapid and consistent styling.
     -   **ShadCN/UI**: A collection of beautifully designed, accessible, and reusable React components built on top of Radix UI and Tailwind CSS.
 -   **Generative AI**: **Google Genkit**.
-    -   Used for AI-powered features, such as the grade analysis on the student dashboard.
+    -   Used for AI-powered features, such as the grade analysis on the student dashboard and attendance analysis for faculty.
     -   Flows are defined in `src/ai/flows/` and are run on the Node.js server runtime.
 -   **State Management**: A combination of React's built-in state (`useState`, `useEffect`) and context (`useContext`) for global state like authentication (`AuthContext`).
 -   **Form Handling**: **React Hook Form** with **Zod** for validation, providing a performant and type-safe way to manage forms.
@@ -45,6 +45,8 @@ The project follows a standard Next.js App Router structure with some key direct
 │   │   └── page.tsx        # Landing page
 │   ├── ai/                 # Genkit AI configuration and flows
 │   │   ├── flows/
+│   │   │   ├── analyze-attendance-flow.ts
+│   │   │   └── ...
 │   │   └── ai-instance.ts
 │   ├── components/         # Reusable UI components
 │   │   ├── dashboard/
@@ -90,28 +92,32 @@ The project follows a standard Next.js App Router structure with some key direct
 -   **Classroom Management**:
     -   Faculty can create classrooms (`createClassroom` service), which creates a new document in the `classrooms` collection in Firestore.
     -   Students can be added/removed from a classroom. This updates the `students` array field within the corresponding classroom document.
-    -   Batch assignment is also managed within the student object in this array.
+    -   Faculty can assign students to specific "batches" (e.g., for practicals) within a classroom.
+
 -   **Attendance**:
-    -   Faculty mark attendance on the `/faculty/attendance` page.
-    -   When attendance is submitted, the `submitLectureAttendance` server action is called.
-    -   This action creates (or overwrites) documents in the `lectureAttendance` collection. Each document represents a single student's status for a single lecture on a specific date. This granular structure allows for detailed reporting.
+    -   Faculty mark attendance on the `/faculty/attendance` page, which is classroom-centric.
+    -   When attendance is submitted, the `submitLectureAttendance` server action is called. This creates or overwrites attendance for a specific lecture on a given date.
+    -   Faculty can view detailed reports for a date range, which includes an automated **Defaulter List** for students below a customizable attendance threshold.
+    -   The report also includes an **AI-powered analysis** (using the `analyzeAttendance` Genkit flow) that provides a summary, key observations, and actionable suggestions.
+
 -   **Grade Management**:
-    -   Faculty use a dedicated page (`/faculty/grades`) to manage grades.
-    -   Grades are not tied to classrooms. A faculty member can search for any student in the system.
-    -   The `updateStudentGrade` service creates or updates a document in the `grades` collection. The document ID is a composite of `studentId` and `courseName` to ensure uniqueness.
+    -   The grade management system is classroom-centric. Faculty first select a classroom, then a student from that classroom's roster.
+    -   The `updateStudentGrade` service creates or updates a grade document. The document ID is a composite of `studentId` and `courseName` to ensure uniqueness.
+    -   Faculty can input both the grade (e.g., "A", "85") and the **Max Marks** for an assessment.
+    -   A **Classroom Report** tab provides a consolidated view of all grades for every student in the class, which can be downloaded as a CSV file.
 
-### 34. Student Features
+### 3.4. Student Features
 
--   **Dashboard**: The central hub that aggregates data from multiple services (`profile`, `attendance`, `grades`). It also calls the `analyzeGrades` Genkit flow.
--   **Profile Page**: Displays comprehensive student data fetched from their user document in Firestore. It implements a **change request system** for sensitive fields. When a student requests a change, a new document is created in the `profileChangeRequests` collection for admin approval.
--   **Classroom Chat**:
-    -   Each classroom has a real-time chat feature.
-    -   Messages are stored in a subcollection within the classroom document: `classrooms/{classroomId}/messages`.
-    -   The `ChatRoom.tsx` component uses a client-side Firestore `onSnapshot` listener to subscribe to new messages, providing a live chat experience.
+-   **Dashboard**: The central hub that aggregates data from multiple services (`profile`, `attendance`, `grades`). It calls the `analyzeGrades` Genkit flow and visually highlights low attendance.
+-   **Profile Page**: Displays comprehensive student data fetched from their user document in Firestore. It implements a **change request system** for sensitive fields, which are sent to admins for approval.
+-   **Classroom & Chat**:
+    -   Students can view the classrooms they are enrolled in and see their assigned batch for each.
+    -   Each classroom has a real-time **chat feature**, allowing students and faculty to communicate.
+    -   Messages are stored in a subcollection (`messages`) within each classroom document and are displayed in real-time using a Firestore `onSnapshot` listener.
 
 ### 3.5. Admin Panel
 
--   **User Management**: Admins can view all users, create new user profiles (Firestore documents only), edit details, and delete profiles directly from the `/admin` page.
+-   **User Management**: Admins can view all users (sorted by roll number), create new user profiles (Firestore documents only), edit details, and delete profiles directly from the `/admin` page.
 -   **System Settings**: The `/admin/settings` page allows admins to control application-wide behavior like `maintenanceMode` or `applicationName`. These settings are stored in a specific Firestore document: `systemSettings/appConfiguration`.
 -   **Request Approval**: Admins review and approve/deny student profile change requests on the `/admin/requests` page. Approving a request triggers a server action that updates the student's main profile document and the status of the request document.
 
@@ -119,8 +125,9 @@ The project follows a standard Next.js App Router structure with some key direct
 
 -   **Initialization**: The Genkit instance is configured in `src/ai/ai-instance.ts`. It checks for the `GOOGLE_GENAI_API_KEY` environment variable to enable the Google AI plugin.
 -   **Flows**: AI-powered features are implemented as Genkit Flows in `src/ai/flows/`.
-    -   **`analyze-grades-flow.ts`**: This flow defines a `gradeAnalysisPrompt`. It takes a student's grades as input, sends them to the Gemini model with instructions, and receives a structured JSON object with an analysis, strengths, and areas for improvement.
--   **Error Handling**: The application is designed to be resilient. If the AI flow fails (e.g., due to a missing API key), the dashboard will catch the error and gracefully fall back to displaying only the raw grade data without crashing.
+    -   **`analyze-grades-flow.ts`**: Takes a student's grades, sends them to the Gemini model, and receives a structured JSON object with an analysis, strengths, and areas for improvement for the student dashboard.
+    -   **`analyze-attendance-flow.ts`**: Takes classroom attendance data, sends it to the Gemini model, and receives a structured analysis with a summary, key observations, and actionable suggestions for the faculty attendance report.
+-   **Error Handling**: The application is designed to be resilient. If an AI flow fails (e.g., due to a missing API key), the dashboard or report will gracefully fall back to displaying only the raw data without crashing.
 
 ---
 
