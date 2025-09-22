@@ -134,3 +134,5 @@ The project follows a standard Next.js App Router structure with some key direct
 ## 4. Getting Started & Setup
 
 For detailed setup instructions, including Firebase project creation, environment variable configuration (especially the `GOOGLE_APPLICATION_CREDENTIALS_B64` for the Admin SDK), and initial admin user setup, refer to the **`README.md`** file.
+
+    
