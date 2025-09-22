@@ -68,9 +68,59 @@ The project follows a standard Next.js App Router structure with some key direct
 
 ---
 
-## 3. Core Features & Implementation
+## 3. Application Architecture
 
-### 3.1. Authentication and Role-Based Access
+This application employs a modern Jamstack-inspired architecture centered around Next.js and Firebase. It strategically separates client-side and server-side responsibilities for security, performance, and scalability.
+
+![Application Architecture Diagram](https://storage.googleapis.com/aissms-erp-doc-assets/AISSMS-ITI-ERP-Architecture.png)
+
+### 3.1 Frontend (Client-Side)
+
+-   **Framework**: The **Next.js App Router** is the foundation. Pages and layouts are primarily **React Server Components (RSCs)**, which run on the server to generate HTML. This provides fast initial page loads.
+-   **Interactivity**: Any component requiring user interaction (e.g., forms, buttons, state changes) is a **Client Component** (marked with `'use client';`).
+-   **Data Fetching & State**:
+    -   **Firebase Client SDK** (`src/lib/firebase/client.ts`): Client Components use this SDK for two main purposes:
+        1.  **Authentication**: Handling user sign-in, sign-up, and observing auth state changes.
+        2.  **Real-time Data**: Listening for real-time updates from Firestore using `onSnapshot` listeners (e.g., for the classroom chat).
+    -   **React Hooks**: `useState`, `useEffect`, and `useContext` are used for managing component-level and global state (like the current user's auth status via `AuthContext`).
+
+### 3.2 Backend (Server-Side Logic)
+
+The backend is not a traditional monolithic server but a collection of serverless functions and server-side code executed by Next.js.
+
+-   **Next.js Server Actions**: This is the primary mechanism for backend logic.
+    -   Functions defined in `src/services/` and marked with `'use server';` are Server Actions.
+    -   They can be called directly from Client Components as if they were local functions, but they execute securely on the server.
+    -   This eliminates the need to create traditional API endpoints for most data mutation tasks (e.g., creating a classroom, submitting a grade).
+-   **Firebase Admin SDK**:
+    -   Server Actions use the **Admin SDK** (`src/lib/firebase/admin.server.ts`) to perform privileged operations.
+    -   The Admin SDK bypasses Firestore security rules, making it suitable for administrative tasks like fetching a list of all users, creating records on behalf of others, or complex data joins that would be insecure on the client.
+    -   Every sensitive Server Action **must verify the user's `idToken`** to ensure the request is authorized.
+-   **Genkit AI Flows**:
+    -   AI-powered logic is encapsulated in Genkit Flows (`src/ai/flows/`). These are also server-side TypeScript functions.
+    -   They are called from Server Actions and interact with external AI models (like Google's Gemini) via the initialized Genkit instance.
+
+### 3.3 Database (Firestore)
+
+-   **Data Model**: Firestore is used as the NoSQL database. Key collections include `users`, `classrooms`, `grades`, `profileChangeRequests`, and `systemSettings`.
+-   **Security**: **Firestore Rules** (`firestore.rules`) are the gatekeepers for all client-side data access. They are critical for security, defining who can read, write, or update specific documents based on their `role` and UID. For example, a rule might state that a user can only write to their own document in the `users` collection.
+-   **Access Patterns**:
+    1.  **Client-Side (Read-Only/Real-time)**: Client components can directly read data that security rules permit (e.g., a student reading their own profile, real-time chat messages).
+    2.  **Server-Side (Write/Admin Read)**: All write operations and reads that require elevated privileges are funneled through Server Actions, which use the Admin SDK.
+
+### 3.4 Authentication Flow
+
+1.  **Sign-in/Sign-up**: The user interacts with a Client Component (e.g., `SignInPage`).
+2.  **Firebase Client SDK**: The component uses the client-side Firebase SDK to handle the email/password authentication process with Firebase Auth.
+3.  **Cookie Management**: Upon successful login, the client receives an `idToken` from Firebase. This token is set as an `httpOnly` cookie (`firebaseAuthToken`).
+4.  **Middleware**: The Next.js middleware (`src/middleware.ts`) inspects every request. It checks for the presence of the `firebaseAuthToken` cookie to determine if a user is authenticated, redirecting them as needed (e.g., protecting a dashboard route or preventing an authenticated user from accessing the sign-in page).
+5.  **Server Action Authorization**: When a client component calls a Server Action, it passes its `idToken`. The Server Action then uses the **Admin SDK's `verifyIdToken()`** method to securely validate the token before executing any privileged logic.
+
+---
+
+## 4. Core Features & Implementation
+
+### 4.1. Authentication and Role-Based Access
 
 -   **Mechanism**: Authentication is handled by **Firebase Authentication** on the client side (`src/lib/firebase/client.ts`).
 -   **Session Management**: A `firebaseAuthToken` cookie is set on successful sign-in. This cookie is used by the **Middleware** (`src/middleware.ts`) to manage protected routes.
@@ -80,14 +130,14 @@ The project follows a standard Next.js App Router structure with some key direct
     3.  Based on the role, it dynamically renders the appropriate layout (`AdminLayout`, `FacultyLayout`, or the default student `Sidebar`). This ensures users only see the navigation and content they are permitted to access.
 -   **Security Rules**: **Firestore Rules** (`firestore.rules`) provide server-side security, ensuring that users can only read/write data according to their role and ownership.
 
-### 3.2. Data Services (Server Actions)
+### 4.2. Data Services (Server Actions)
 
 -   The `src/services/` directory contains all the backend logic, implemented as **Next.js Server Actions**.
 -   These are `async` functions marked with the `'use server';` directive. They can be called directly from client components as if they were local functions.
 -   **Admin SDK**: Server Actions use the **Firebase Admin SDK** (`src/lib/firebase/admin.server.ts`) to perform privileged operations that would be insecure on the client (e.g., creating a classroom, fetching all users, approving requests).
 -   **Authentication in Server Actions**: Every server action that requires authentication accepts an `idToken` from the client. This token is verified using `adminAuth.verifyIdToken()` at the beginning of the function to authorize the request.
 
-### 3.3. Faculty Tools
+### 4.3. Faculty Tools
 
 -   **Classroom Management**:
     -   Faculty can create classrooms (`createClassroom` service), which creates a new document in the `classrooms` collection in Firestore.
@@ -106,7 +156,7 @@ The project follows a standard Next.js App Router structure with some key direct
     -   Faculty can input both the grade (e.g., "A", "85") and the **Max Marks** for an assessment.
     -   A **Classroom Report** tab provides a consolidated view of all grades for every student in the class, which can be downloaded as a CSV file.
 
-### 3.4. Student Features
+### 4.4. Student Features
 
 -   **Dashboard**: The central hub that aggregates data from multiple services (`profile`, `attendance`, `grades`). It calls the `analyzeGrades` Genkit flow and visually highlights low attendance.
 -   **Profile Page**: Displays comprehensive student data fetched from their user document in Firestore. It implements a **change request system** for sensitive fields, which are sent to admins for approval.
@@ -115,13 +165,13 @@ The project follows a standard Next.js App Router structure with some key direct
     -   Each classroom has a real-time **chat feature**, allowing students and faculty to communicate.
     -   Messages are stored in a subcollection (`messages`) within each classroom document and are displayed in real-time using a Firestore `onSnapshot` listener.
 
-### 3.5. Admin Panel
+### 4.5. Admin Panel
 
 -   **User Management**: Admins can view all users (sorted by roll number), create new user profiles (Firestore documents only), edit details, and delete profiles directly from the `/admin` page.
 -   **System Settings**: The `/admin/settings` page allows admins to control application-wide behavior like `maintenanceMode` or `applicationName`. These settings are stored in a specific Firestore document: `systemSettings/appConfiguration`.
 -   **Request Approval**: Admins review and approve/deny student profile change requests on the `/admin/requests` page. Approving a request triggers a server action that updates the student's main profile document and the status of the request document.
 
-### 3.6. Genkit AI Integration
+### 4.6. Genkit AI Integration
 
 -   **Initialization**: The Genkit instance is configured in `src/ai/ai-instance.ts`. It checks for the `GOOGLE_GENAI_API_KEY` environment variable to enable the Google AI plugin.
 -   **Flows**: AI-powered features are implemented as Genkit Flows in `src/ai/flows/`.
@@ -131,8 +181,6 @@ The project follows a standard Next.js App Router structure with some key direct
 
 ---
 
-## 4. Getting Started & Setup
+## 5. Getting Started & Setup
 
 For detailed setup instructions, including Firebase project creation, environment variable configuration (especially the `GOOGLE_APPLICATION_CREDENTIALS_B64` for the Admin SDK), and initial admin user setup, refer to the **`README.md`** file.
-
-    
