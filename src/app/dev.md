@@ -72,7 +72,7 @@ The project follows a standard Next.js App Router structure with some key direct
 
 This application employs a modern Jamstack-inspired architecture centered around Next.js and Firebase. It strategically separates client-side and server-side responsibilities for security, performance, and scalability.
 
-![Application Architecture Diagram](https://storage.googleapis.com/aissms-erp-doc-assets/AISSMS-ITI-ERP-Architecture-V2.png)
+[Note: The architecture diagram has been removed due to an invalid link.]
 
 ### 3.1 Frontend (Client-Side)
 
