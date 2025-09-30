@@ -1,3 +1,4 @@
+
 'use client'; // Required for Recharts
 
 import type { AttendanceRecord } from '@/services/attendance';
@@ -27,23 +28,16 @@ const processAttendanceData = (records: AttendanceRecord[]) => {
     }
   });
 
-   // Calculate percentage or just use present count? Screenshot shows count.
-   // For the bar chart, let's use the count of present days per month.
+   // For the bar chart, we'll use the count of present days per month.
    const chartData = monthNames.map((name, index) => ({
      name: name,
-     // Use present count for the bar height as in the screenshot
      attendance: monthlyData[index]?.present || 0,
-     // Optional: include absent and total for tooltip
      absent: monthlyData[index]?.absent || 0,
      total: monthlyData[index]?.total || 0,
    }));
 
-
-  // Filter to show only months with data or a specific range (e.g., last 6 months)
-  // Screenshot shows Jan-Jun, let's mimic that for now if data exists
-  const relevantMonths = chartData.slice(0, 6); // Show Jan-Jun
-
-  return relevantMonths; // Returning only data for Jan-Jun
+  // Return data for all 12 months.
+  return chartData;
 };
 
 
