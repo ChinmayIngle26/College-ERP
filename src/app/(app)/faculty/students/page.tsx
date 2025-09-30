@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useEffect, useState, useMemo } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { MainHeader } from '@/components/layout/main-header';
@@ -20,11 +20,15 @@ import Link from 'next/link';
 export default function FacultyViewStudentsPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
   const { toast } = useToast();
 
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loadingClassrooms, setLoadingClassrooms] = useState(true);
-  const [selectedClassroomId, setSelectedClassroomId] = useState<string | undefined>();
+  
+  // Initialize selectedClassroomId from URL search params
+  const [selectedClassroomId, setSelectedClassroomId] = useState<string | undefined>(() => searchParams.get('classroomId') || undefined);
   
   const [studentsInClassroom, setStudentsInClassroom] = useState<ClassroomStudentInfo[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
@@ -34,6 +38,21 @@ export default function FacultyViewStudentsPage() {
       fetchFacultyClassrooms();
     }
   }, [user, authLoading]);
+
+  // When classrooms are loaded, if there's a selected ID from the URL, fetch its students
+  useEffect(() => {
+      if (selectedClassroomId && classrooms.length > 0) {
+          // Check if the selectedClassroomId is valid
+          if(classrooms.some(c => c.id === selectedClassroomId)) {
+            fetchStudentsForClassroom(selectedClassroomId);
+          } else {
+            // If the classroomId from URL is not valid, clear it
+            updateUrlWithClassroomId(undefined);
+            setSelectedClassroomId(undefined);
+          }
+      }
+  }, [selectedClassroomId, classrooms]);
+
 
   const fetchFacultyClassrooms = async () => {
     if (!user || !clientAuth.currentUser) return;
@@ -49,23 +68,40 @@ export default function FacultyViewStudentsPage() {
     }
   };
 
-  const handleClassroomSelect = async (classroomId: string) => {
-    setSelectedClassroomId(classroomId);
+  const fetchStudentsForClassroom = async (classroomId: string) => {
     if (!classroomId || !clientAuth.currentUser) return;
-    
     setLoadingStudents(true);
     try {
-      const idToken = await clientAuth.currentUser.getIdToken();
-      const students = await getStudentsInClassroom(idToken, classroomId);
-      const sortedStudents = students.sort((a, b) => 
-        (a.studentIdNumber || '').localeCompare(b.studentIdNumber || '', undefined, { numeric: true })
-      );
-      setStudentsInClassroom(sortedStudents);
+        const idToken = await clientAuth.currentUser.getIdToken();
+        const students = await getStudentsInClassroom(idToken, classroomId);
+        const sortedStudents = students.sort((a, b) => 
+            (a.studentIdNumber || '').localeCompare(b.studentIdNumber || '', undefined, { numeric: true })
+        );
+        setStudentsInClassroom(sortedStudents);
     } catch (error) {
-      toast({ title: "Error", description: "Could not load students for this classroom.", variant: "destructive" });
+        toast({ title: "Error", description: "Could not load students for this classroom.", variant: "destructive" });
     } finally {
-      setLoadingStudents(false);
+        setLoadingStudents(false);
     }
+  }
+
+  const updateUrlWithClassroomId = (classroomId: string | undefined) => {
+    const current = new URLSearchParams(Array.from(searchParams.entries()));
+    if (!classroomId) {
+        current.delete('classroomId');
+    } else {
+        current.set('classroomId', classroomId);
+    }
+    const search = current.toString();
+    const query = search ? `?${search}` : "";
+    // Using replace to avoid adding to browser history for simple state changes
+    router.replace(`${pathname}${query}`);
+  };
+
+
+  const handleClassroomSelect = (classroomId: string) => {
+    setSelectedClassroomId(classroomId);
+    updateUrlWithClassroomId(classroomId); // Update URL when selection changes
   };
 
   if (authLoading) return <Skeleton className="h-screen w-full" />;
@@ -125,7 +161,7 @@ export default function FacultyViewStudentsPage() {
                                         <TableCell>{student.name}</TableCell>
                                         <TableCell>{student.email || 'N/A'}</TableCell>
                                         <TableCell className="text-right">
-                                            <Link href={`/faculty/students/${student.userId}`} passHref>
+                                            <Link href={`/faculty/students/${student.userId}?classroomId=${selectedClassroomId}`} passHref>
                                                 <Eye className="h-4 w-4 text-muted-foreground" />
                                             </Link>
                                         </TableCell>

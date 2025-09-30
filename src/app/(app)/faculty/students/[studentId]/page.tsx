@@ -2,7 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/auth-context';
 import { useToast } from '@/hooks/use-toast';
 import { MainHeader } from '@/components/layout/main-header';
@@ -37,8 +37,10 @@ export default function FacultyStudentDetailPage() {
   const { user, loading: authLoading } = useAuth();
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const studentId = params.studentId as string;
+  const classroomIdFromUrl = searchParams.get('classroomId');
 
   const [studentData, setStudentData] = useState<StudentData | null>(null);
   const [loadingData, setLoadingData] = useState(true);
@@ -81,6 +83,13 @@ export default function FacultyStudentDetailPage() {
     }
   };
 
+  const handleGoBack = () => {
+    const backUrl = classroomIdFromUrl
+      ? `/faculty/students?classroomId=${classroomIdFromUrl}`
+      : '/faculty/students';
+    router.push(backUrl);
+  };
+
   if (loadingData || authLoading) {
     return (
       <>
@@ -109,7 +118,7 @@ export default function FacultyStudentDetailPage() {
             <AlertTriangle className="mx-auto h-12 w-12 text-destructive" />
             <h2 className="mt-4 text-xl font-semibold">Error Loading Data</h2>
             <p className="text-muted-foreground">{error}</p>
-            <Button onClick={() => router.back()} className="mt-4">
+            <Button onClick={handleGoBack} className="mt-4">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
             </Button>
         </div>
@@ -123,7 +132,7 @@ export default function FacultyStudentDetailPage() {
             <MainHeader />
             <div className="p-6 text-center">
                 <p>No data available for this student.</p>
-                 <Button onClick={() => router.back()} className="mt-4">
+                 <Button onClick={handleGoBack} className="mt-4">
                     <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
                 </Button>
             </div>
@@ -138,7 +147,7 @@ export default function FacultyStudentDetailPage() {
       <MainHeader />
       <div className="p-6 space-y-6">
         <div>
-            <Button variant="outline" onClick={() => router.push('/faculty/students')}>
+            <Button variant="outline" onClick={handleGoBack}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Student List
             </Button>
             <h2 className="text-2xl font-bold tracking-tight md:text-3xl mt-4">
