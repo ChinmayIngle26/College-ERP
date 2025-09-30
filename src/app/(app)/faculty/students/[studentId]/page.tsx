@@ -94,13 +94,13 @@ export default function FacultyStudentDetailPage() {
     return (
       <>
         <MainHeader />
-        <div className="p-6 space-y-6">
+        <div className="p-4 md:p-6 space-y-6">
           <Skeleton className="h-10 w-48" />
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-1 space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 space-y-6">
               <Skeleton className="h-64 w-full" />
             </div>
-            <div className="md:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-6">
               <Skeleton className="h-80 w-full" />
               <Skeleton className="h-80 w-full" />
             </div>
@@ -145,7 +145,7 @@ export default function FacultyStudentDetailPage() {
   return (
     <>
       <MainHeader />
-      <div className="p-6 space-y-6">
+      <div className="p-4 md:p-6 space-y-6">
         <div>
             <Button variant="outline" onClick={handleGoBack}>
               <ArrowLeft className="mr-2 h-4 w-4" /> Back to Student List
@@ -156,8 +156,8 @@ export default function FacultyStudentDetailPage() {
             <p className="text-muted-foreground">Roll No: {profile.studentId}</p>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-1 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-1 space-y-6">
                  <Card>
                     <CardHeader>
                         <CardTitle className="flex items-center text-xl">
@@ -183,7 +183,7 @@ export default function FacultyStudentDetailPage() {
                     </CardContent>
                 </Card>
             </div>
-             <div className="md:col-span-2 space-y-6">
+             <div className="lg:col-span-2 space-y-6">
                 <GradesChartCard grades={grades} analysis={analysis} />
                 <AttendanceCalendarCard attendanceRecords={attendance} />
             </div>
