@@ -13,7 +13,7 @@ import { ArrowLeft, UserSquare, BarChart, CheckSquare, GraduationCap, AlertTrian
 import { auth as clientAuth } from '@/lib/firebase/client';
 import { getStudentProfile } from '@/services/profile';
 import { getAttendanceRecords } from '@/services/attendance';
-import { getGrades } from '@/services/grades';
+import { getGradesForStudent } from '@/services/grades'; // Changed from getGrades
 import { analyzeGrades } from '@/ai/flows/analyze-grades-flow';
 import type { StudentProfile } from '@/services/profile';
 import type { AttendanceRecord } from '@/services/attendance';
@@ -32,6 +32,13 @@ interface StudentData {
   grades: Grade[];
   analysis: GradeAnalysisOutput;
 }
+
+const defaultGradeAnalysis: GradeAnalysisOutput = {
+    overallSummary: "AI analysis is currently unavailable. Please check the API key or try again later.",
+    strengths: [],
+    areasForImprovement: []
+};
+
 
 export default function FacultyStudentDetailPage() {
   const { user, loading: authLoading } = useAuth();
@@ -59,19 +66,28 @@ export default function FacultyStudentDetailPage() {
     try {
       const idToken = await clientAuth.currentUser.getIdToken();
       
-      // A new service function `getStudentAttendanceForFaculty(facultyToken, studentId)` would be ideal.
-      // For now, we fetch all records for the student, which is what we need for the calendar.
       const attendancePromise = getAttendanceRecords(idToken, studentId); 
       const profilePromise = getStudentProfile(idToken, studentId);
-      const gradesPromise = getGrades(studentId);
+      const gradesPromise = getGradesForStudent(idToken, studentId); // Use the correct service function
 
       const [profile, attendance, grades] = await Promise.all([profilePromise, attendancePromise, gradesPromise]);
 
       if (!profile) {
         throw new Error("Student profile not found.");
       }
-
-      const analysis = await analyzeGrades(grades);
+      
+      let analysis: GradeAnalysisOutput;
+      try {
+        analysis = await analyzeGrades(grades);
+      } catch (aiError) {
+        console.error("Faculty Student Detail Page: AI grade analysis failed.", aiError);
+        toast({
+          title: "AI Analysis Unavailable",
+          description: "Could not generate AI grade analysis for this student.",
+          variant: "default"
+        });
+        analysis = defaultGradeAnalysis;
+      }
 
       setStudentData({ profile, attendance, grades, analysis });
 

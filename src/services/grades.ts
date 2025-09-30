@@ -46,6 +46,37 @@ export async function getGrades(studentId: string): Promise<Grade[]> {
 }
 
 /**
+ * Retrieves the grades for a specific student, intended for use by an authenticated faculty member.
+ * This is a Server Action for the faculty student detail page.
+ * @param facultyIdToken - The Firebase ID token of the authenticated faculty member.
+ * @param studentId - The UID of the student whose grades are to be fetched.
+ * @returns A promise that resolves to an array of Grade objects for the specified student.
+ */
+export async function getGradesForStudent(facultyIdToken: string, studentId: string): Promise<Grade[]> {
+  if (adminInitializationError) {
+    console.error("getGradesForStudent SA Error: Admin SDK init failed:", adminInitializationError.message);
+    throw new Error("Server error: Admin SDK initialization failed.");
+  }
+  if (!adminDb || !adminAuth) {
+    throw new Error("Server error: Admin services not initialized.");
+  }
+
+  // Verify the faculty's token to ensure this action is authorized
+  try {
+    await adminAuth.verifyIdToken(facultyIdToken);
+    // In a more complex scenario, you might add a check here to ensure
+    // the faculty member is actually associated with the student (e.g., via a classroom).
+  } catch (error) {
+    console.error("getGradesForStudent SA Error: Invalid faculty ID token", error);
+    throw new Error("Authentication failed for this action.");
+  }
+
+  // Reuse the existing getGrades logic now that permission is confirmed.
+  return getGrades(studentId);
+}
+
+
+/**
  * Retrieves all grades for a list of student UIDs.
  * This is a Server Action for faculty to generate a classroom-wide grade report.
  * @param idToken - Faculty's Firebase ID token.
