@@ -10,12 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Users, Eye } from 'lucide-react';
+import { Users, Eye, Search } from 'lucide-react';
 import { auth as clientAuth } from '@/lib/firebase/client';
 import { getClassroomsByFaculty, getStudentsInClassroom } from '@/services/classroomService';
 import type { Classroom, ClassroomStudentInfo } from '@/types/classroom';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
+import { Input } from '@/components/ui/input';
 
 export default function FacultyViewStudentsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -27,11 +28,11 @@ export default function FacultyViewStudentsPage() {
   const [classrooms, setClassrooms] = useState<Classroom[]>([]);
   const [loadingClassrooms, setLoadingClassrooms] = useState(true);
   
-  // Initialize selectedClassroomId from URL search params
   const [selectedClassroomId, setSelectedClassroomId] = useState<string | undefined>(() => searchParams.get('classroomId') || undefined);
   
   const [studentsInClassroom, setStudentsInClassroom] = useState<ClassroomStudentInfo[]>([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     if (user && !authLoading) {
@@ -39,14 +40,11 @@ export default function FacultyViewStudentsPage() {
     }
   }, [user, authLoading]);
 
-  // When classrooms are loaded, if there's a selected ID from the URL, fetch its students
   useEffect(() => {
       if (selectedClassroomId && classrooms.length > 0) {
-          // Check if the selectedClassroomId is valid
           if(classrooms.some(c => c.id === selectedClassroomId)) {
             fetchStudentsForClassroom(selectedClassroomId);
           } else {
-            // If the classroomId from URL is not valid, clear it
             updateUrlWithClassroomId(undefined);
             setSelectedClassroomId(undefined);
           }
@@ -94,15 +92,27 @@ export default function FacultyViewStudentsPage() {
     }
     const search = current.toString();
     const query = search ? `?${search}` : "";
-    // Using replace to avoid adding to browser history for simple state changes
     router.replace(`${pathname}${query}`);
   };
 
 
   const handleClassroomSelect = (classroomId: string) => {
+    setSearchTerm(''); // Reset search on classroom change
     setSelectedClassroomId(classroomId);
-    updateUrlWithClassroomId(classroomId); // Update URL when selection changes
+    updateUrlWithClassroomId(classroomId);
   };
+  
+  const filteredStudents = useMemo(() => {
+    if (!searchTerm) {
+      return studentsInClassroom;
+    }
+    const lowercasedFilter = searchTerm.toLowerCase();
+    return studentsInClassroom.filter(student =>
+      student.name.toLowerCase().includes(lowercasedFilter) ||
+      (student.studentIdNumber && student.studentIdNumber.toLowerCase().includes(lowercasedFilter)) ||
+      (student.email && student.email.toLowerCase().includes(lowercasedFilter))
+    );
+  }, [studentsInClassroom, searchTerm]);
 
   if (authLoading) return <Skeleton className="h-screen w-full" />;
 
@@ -136,10 +146,19 @@ export default function FacultyViewStudentsPage() {
                 <Users className="h-5 w-5" /> Students in Classroom
               </CardTitle>
               <CardDescription>Select a student to view their detailed profile and performance.</CardDescription>
+              <div className="relative pt-4">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  placeholder="Search by name, roll no, or email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-8 w-full max-w-sm"
+                />
+              </div>
             </CardHeader>
             <CardContent>
               {loadingStudents ? <Skeleton className="h-40 w-full" /> : 
-                studentsInClassroom.length > 0 ? (
+                filteredStudents.length > 0 ? (
                     <div className="overflow-auto max-h-[60vh] relative border rounded-md">
                         <Table>
                             <TableHeader>
@@ -151,7 +170,7 @@ export default function FacultyViewStudentsPage() {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {studentsInClassroom.map(student => (
+                                {filteredStudents.map(student => (
                                     <TableRow 
                                         key={student.userId}
                                         className="cursor-pointer hover:bg-muted"
@@ -171,7 +190,9 @@ export default function FacultyViewStudentsPage() {
                         </Table>
                     </div>
                 ) : (
-                    <p className="text-center text-muted-foreground py-6">No students found in this classroom.</p>
+                    <p className="text-center text-muted-foreground py-6">
+                      {studentsInClassroom.length > 0 && searchTerm ? 'No students match your search.' : 'No students found in this classroom.'}
+                    </p>
                 )
               }
             </CardContent>
