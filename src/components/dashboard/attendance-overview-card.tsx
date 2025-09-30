@@ -1,114 +1,66 @@
 
-'use client'; // Required for Recharts
+'use client';
 
 import type { AttendanceRecord } from '@/services/attendance';
-import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { format, parseISO, getMonth } from 'date-fns';
+import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { CalendarDays } from 'lucide-react';
+import { format, parseISO } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface AttendanceOverviewCardProps {
   attendanceRecords: AttendanceRecord[];
 }
 
-// Process data to get monthly attendance counts
-const processAttendanceData = (records: AttendanceRecord[]) => {
-  const monthlyData: { [key: number]: { name: string; present: number; absent: number; total: number } } = {};
-  const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-  records.forEach(record => {
-    try {
-        const monthIndex = getMonth(parseISO(record.date));
-        if (!monthlyData[monthIndex]) {
-          monthlyData[monthIndex] = { name: monthNames[monthIndex], present: 0, absent: 0, total: 0 };
-        }
-        monthlyData[monthIndex].total++;
-        if (record.status === 'present') {
-          monthlyData[monthIndex].present++;
-        } else {
-           monthlyData[monthIndex].absent++;
-        }
-    } catch (e) {
-        console.warn(`Could not parse date for attendance record: ${record.date}`, e);
-    }
-  });
-
-   // For the bar chart, we'll use the count of present days per month.
-   const chartData = monthNames.map((name, index) => ({
-     name: name,
-     attendance: monthlyData[index]?.present || 0,
-     absent: monthlyData[index]?.absent || 0,
-     total: monthlyData[index]?.total || 0,
-   }));
-
-  // Return data for all 12 months.
-  return chartData;
-};
-
-
 export function AttendanceOverviewCard({ attendanceRecords }: AttendanceOverviewCardProps) {
-  const chartData = processAttendanceData(attendanceRecords);
-  // Corrected check: Look for any records (present or absent), not just present ones.
-  const hasData = chartData.some(d => d.total > 0);
+  // Sort records by date descending and take the most recent 5
+  const recentRecords = [...attendanceRecords]
+    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .slice(0, 5);
+
+  const hasData = recentRecords.length > 0;
 
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow">
       <CardHeader>
-        <CardTitle>Attendance Overview</CardTitle>
-         {/* Optional: Add description if needed */}
-         {/* <CardDescription>Monthly attendance summary</CardDescription> */}
+        <CardTitle className="flex items-center gap-2">
+          <CalendarDays className="h-5 w-5 text-primary" />
+          Recent Attendance
+        </CardTitle>
       </CardHeader>
-      <CardContent className="h-64 w-full pl-0 pr-4"> {/* Adjusted padding for axis labels */}
+      <CardContent>
         {hasData ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={chartData}
-              margin={{
-                top: 5,
-                right: 0, // Reduced right margin
-                left: -20, // Negative margin to pull Y-axis labels left
-                bottom: 5,
-              }}
-              barCategoryGap="20%" // Adjust gap between bars
-            >
-              <CartesianGrid strokeDasharray="3 3" vertical={false} />
-              <XAxis
-                dataKey="name"
-                axisLine={false}
-                tickLine={false}
-                fontSize={12}
-                padding={{ left: 10, right: 10 }} // Padding for X-axis labels
-              />
-              <YAxis
-                 axisLine={false}
-                 tickLine={false}
-                 fontSize={12}
-                 width={40} // Adjust width to fit labels
-               />
-              <Tooltip
-                 cursor={{ fill: 'hsl(var(--muted))' }}
-                 contentStyle={{
-                   backgroundColor: 'hsl(var(--background))',
-                   borderColor: 'hsl(var(--border))',
-                   borderRadius: 'var(--radius)',
-                   fontSize: '0.8rem', // Smaller tooltip font
-                 }}
-                 itemStyle={{ color: 'hsl(var(--foreground))' }}
-                 formatter={(value, name, props) => [`${value} days present`, null]} // Customize tooltip content
-               />
-              <Bar
-                dataKey="attendance"
-                radius={[4, 4, 0, 0]} // Rounded top corners
-              >
-                 {/* Apply color based on theme variable */}
-                 {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill="hsl(var(--chart-1))" />
-                 ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Lecture/Subject</TableHead>
+                  <TableHead className="text-right">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {recentRecords.map((record, index) => (
+                  <TableRow key={`${record.date}-${record.lectureName}-${index}`}>
+                    <TableCell className="whitespace-nowrap">{format(parseISO(record.date), 'PP')}</TableCell>
+                    <TableCell>{record.lectureName || 'N/A'}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge
+                        variant={record.status === 'present' ? 'default' : 'destructive'}
+                        className={cn(record.status === 'present' && 'bg-green-600')}
+                      >
+                        {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         ) : (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-center text-muted-foreground">No attendance data available for this period.</p>
+          <div className="flex h-full min-h-[150px] items-center justify-center">
+            <p className="text-center text-muted-foreground">No attendance data available.</p>
           </div>
         )}
       </CardContent>
