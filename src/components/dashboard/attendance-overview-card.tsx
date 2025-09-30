@@ -16,7 +16,14 @@ interface AttendanceOverviewCardProps {
 export function AttendanceOverviewCard({ attendanceRecords }: AttendanceOverviewCardProps) {
   // Sort records by date descending and take the most recent 5
   const recentRecords = [...attendanceRecords]
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .sort((a, b) => {
+        // Handle potential invalid date strings
+        const dateA = parseISO(a.date);
+        const dateB = parseISO(b.date);
+        if (isNaN(dateA.getTime())) return 1;
+        if (isNaN(dateB.getTime())) return -1;
+        return dateB.getTime() - dateA.getTime();
+    })
     .slice(0, 5);
 
   const hasData = recentRecords.length > 0;
@@ -41,20 +48,23 @@ export function AttendanceOverviewCard({ attendanceRecords }: AttendanceOverview
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {recentRecords.map((record, index) => (
-                  <TableRow key={`${record.date}-${record.lectureName}-${index}`}>
-                    <TableCell className="whitespace-nowrap">{format(parseISO(record.date), 'PP')}</TableCell>
-                    <TableCell>{record.lectureName || 'N/A'}</TableCell>
-                    <TableCell className="text-right">
-                      <Badge
-                        variant={record.status === 'present' ? 'default' : 'destructive'}
-                        className={cn(record.status === 'present' && 'bg-green-600')}
-                      >
-                        {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                      </Badge>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {recentRecords.map((record, index) => {
+                  const date = parseISO(record.date);
+                  return (
+                    <TableRow key={`${record.date}-${record.lectureName}-${index}`}>
+                      <TableCell className="whitespace-nowrap">{!isNaN(date.getTime()) ? format(date, 'PP') : 'Invalid Date'}</TableCell>
+                      <TableCell>{record.lectureName || 'N/A'}</TableCell>
+                      <TableCell className="text-right">
+                        <Badge
+                          variant={record.status === 'present' ? 'default' : 'destructive'}
+                          className={cn(record.status === 'present' && 'bg-green-600')}
+                        >
+                          {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
               </TableBody>
             </Table>
           </div>

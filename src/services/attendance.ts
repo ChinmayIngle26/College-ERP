@@ -19,10 +19,11 @@ export interface AttendanceRecord {
  * Asynchronously retrieves the attendance records for a given student from the 'lectureAttendance' collection.
  * This is a Server Action called from client-side (student attendance page and dashboard).
  *
- * @param idToken The Firebase ID token of the authenticated student.
+ * @param idToken The Firebase ID token of the authenticated user.
+ * @param studentId If provided, fetches records for this student ID (faculty use). If not, uses the token holder's UID (student use).
  * @returns A promise that resolves to an array of AttendanceRecord objects.
  */
-export async function getAttendanceRecords(idToken: string): Promise<AttendanceRecord[]> {
+export async function getAttendanceRecords(idToken: string, studentId?: string): Promise<AttendanceRecord[]> {
   if (adminInitializationError) {
     console.error("getAttendanceRecords SA Error: Admin SDK init failed:", adminInitializationError.message);
     throw new Error("Server error: Admin SDK initialization failed.");
@@ -32,10 +33,15 @@ export async function getAttendanceRecords(idToken: string): Promise<AttendanceR
     throw new Error("Server error: Admin services not initialized.");
   }
 
-  let studentId: string;
+  let targetStudentId: string;
   try {
     const decodedToken = await adminAuth.verifyIdToken(idToken);
-    studentId = decodedToken.uid;
+    if (studentId) {
+      // Potentially add a faculty role check here in the future
+      targetStudentId = studentId;
+    } else {
+      targetStudentId = decodedToken.uid;
+    }
   } catch (error) {
     console.error("getAttendanceRecords SA Error: Invalid ID token", error);
     throw new Error("Authentication failed.");
@@ -44,7 +50,7 @@ export async function getAttendanceRecords(idToken: string): Promise<AttendanceR
   try {
     const lectureAttendanceCollectionRef = adminDb.collection('lectureAttendance');
     const q = lectureAttendanceCollectionRef
-      .where('studentId', '==', studentId)
+      .where('studentId', '==', targetStudentId)
       .orderBy('date', 'desc')
       .orderBy('submittedAt', 'desc');
 
@@ -72,7 +78,7 @@ export async function getAttendanceRecords(idToken: string): Promise<AttendanceR
       };
     });
   } catch (error) {
-    console.error(`Error fetching attendance records for student ${studentId} (Admin SDK):`, error);
+    console.error(`Error fetching attendance records for student ${targetStudentId} (Admin SDK):`, error);
     throw error; 
   }
 }

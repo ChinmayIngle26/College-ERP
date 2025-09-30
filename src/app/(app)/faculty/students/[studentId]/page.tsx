@@ -23,8 +23,8 @@ import Image from 'next/image';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { AttendanceOverviewCard } from '@/components/dashboard/attendance-overview-card';
 import { GradesChartCard } from '@/components/dashboard/grades-chart-card';
+import { AttendanceCalendarCard } from '@/components/profile/attendance-calendar-card';
 
 interface StudentData {
   profile: StudentProfile;
@@ -57,8 +57,10 @@ export default function FacultyStudentDetailPage() {
     try {
       const idToken = await clientAuth.currentUser.getIdToken();
       
+      // A new service function `getStudentAttendanceForFaculty(facultyToken, studentId)` would be ideal.
+      // For now, we fetch all records for the student, which is what we need for the calendar.
+      const attendancePromise = getAttendanceRecords(idToken, studentId); 
       const profilePromise = getStudentProfile(idToken, studentId);
-      const attendancePromise = getAttendanceRecords(idToken); // This needs to be adapted
       const gradesPromise = getGrades(studentId);
 
       const [profile, attendance, grades] = await Promise.all([profilePromise, attendancePromise, gradesPromise]);
@@ -69,13 +71,7 @@ export default function FacultyStudentDetailPage() {
 
       const analysis = await analyzeGrades(grades);
 
-      // TODO: The getAttendanceRecords needs to be adapted to fetch for a specific student by a faculty.
-      // For now, this will incorrectly fetch the faculty's own attendance. This is a placeholder.
-      // A new service function `getStudentAttendanceForFaculty(facultyToken, studentId)` is needed.
-      const studentSpecificAttendance = attendance.filter(record => record.classroomName === 'Example Class');
-
-
-      setStudentData({ profile, attendance: studentSpecificAttendance, grades, analysis });
+      setStudentData({ profile, attendance, grades, analysis });
 
     } catch (err) {
       setError((err as Error).message || "Failed to load student data.");
@@ -180,7 +176,7 @@ export default function FacultyStudentDetailPage() {
             </div>
              <div className="md:col-span-2 space-y-6">
                 <GradesChartCard grades={grades} analysis={analysis} />
-                <AttendanceOverviewCard attendanceRecords={attendance} />
+                <AttendanceCalendarCard attendanceRecords={attendance} />
             </div>
         </div>
       </div>
