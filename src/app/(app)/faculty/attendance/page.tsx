@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { CalendarIcon, CheckCircle, User, Users, BookOpen, Loader2, Search, Download, AlertTriangle, Lightbulb, Trash2 } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { DateRange } from 'react-day-picker';
 import { format, isValid, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -78,6 +79,8 @@ export default function FacultyAttendancePage() {
     const [loadingPreviousAttendance, setLoadingPreviousAttendance] = useState(false);
 
     // State for Reports Tab
+    const [reportTab, setReportTab] = useState('monthly');
+    const [dateRange, setDateRange] = useState<DateRange | undefined>({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) });
     const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth()));
     const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
     const [reportRecords, setReportRecords] = useState<LectureAttendanceRecord[]>([]);
@@ -440,20 +443,27 @@ export default function FacultyAttendancePage() {
 
 
     const handleViewRecords = async () => {
-        if (!user || !clientAuth.currentUser) {
-            toast({ title: "Authentication Error", description: "User not authenticated.", variant: "destructive" });
-            return;
-        }
-        if (!selectedClassroomId || !selectedMonth || !selectedYear) {
-            toast({ title: "Missing Information", description: "Please select a classroom, month, and year.", variant: "destructive" });
+        if (!user || !clientAuth.currentUser || !selectedClassroomId) {
+            toast({ title: "Missing Information", description: "Please select a classroom.", variant: "destructive" });
             return;
         }
 
-        const year = parseInt(selectedYear, 10);
-        const month = parseInt(selectedMonth, 10); // month is 0-indexed
-        const startDate = startOfMonth(new Date(year, month));
-        const endDate = endOfMonth(new Date(year, month));
+        let startDate, endDate;
 
+        if (reportTab === 'monthly') {
+            const year = parseInt(selectedYear, 10);
+            const month = parseInt(selectedMonth, 10);
+            startDate = startOfMonth(new Date(year, month));
+            endDate = endOfMonth(new Date(year, month));
+        } else { // Custom range
+            if (!dateRange?.from || !dateRange?.to) {
+                toast({ title: "Missing Dates", description: "Please select a start and end date for the custom range.", variant: "destructive" });
+                return;
+            }
+            startDate = dateRange.from;
+            endDate = dateRange.to;
+        }
+        
         setIsFetchingRecords(true);
         setIsAnalyzing(true);
         setReportRecords([]);
@@ -736,11 +746,11 @@ export default function FacultyAttendancePage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>View Attendance Reports</CardTitle>
-                        <CardDescription>Select a classroom, month, and year to view records and generate reports.</CardDescription>
+                        <CardDescription>Select a classroom and a report type to view records and generate reports.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                            <div>
+                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                            <div className="md:col-span-3">
                                 <Label htmlFor="classroom-report">Classroom</Label>
                                 {loadingClassrooms ? <Skeleton className="h-10 w-full" /> : (
                                     <Select value={selectedClassroomId} onValueChange={setSelectedClassroomId} disabled={classrooms.length === 0}>
@@ -748,29 +758,47 @@ export default function FacultyAttendancePage() {
                                         <SelectContent>{classrooms.map(cr => (<SelectItem key={cr.id} value={cr.id}>{cr.name} ({cr.subject})</SelectItem>))}</SelectContent>
                                     </Select>)}
                             </div>
-                             <div>
-                                <Label htmlFor="month-select">Month</Label>
-                                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                                    <SelectTrigger id="month-select"><SelectValue placeholder="Select Month" /></SelectTrigger>
-                                    <SelectContent>
-                                        {monthNames.map((month, index) => (
-                                            <SelectItem key={month} value={String(index)}>{month}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                            <div>
-                                <Label htmlFor="year-select">Year</Label>
-                                <Select value={selectedYear} onValueChange={setSelectedYear}>
-                                    <SelectTrigger id="year-select"><SelectValue placeholder="Select Year" /></SelectTrigger>
-                                    <SelectContent>
-                                        {yearOptions.map(year => (
-                                            <SelectItem key={year} value={year}>{year}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </div>
                         </div>
+
+                        <Tabs value={reportTab} onValueChange={setReportTab} className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="monthly">Monthly Report</TabsTrigger>
+                                <TabsTrigger value="custom">Custom Range</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="monthly" className="mt-4 space-y-4">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                    <div>
+                                        <Label htmlFor="month-select">Month</Label>
+                                        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                                            <SelectTrigger id="month-select"><SelectValue placeholder="Select Month" /></SelectTrigger>
+                                            <SelectContent>{monthNames.map((month, index) => (<SelectItem key={month} value={String(index)}>{month}</SelectItem>))}</SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div>
+                                        <Label htmlFor="year-select">Year</Label>
+                                        <Select value={selectedYear} onValueChange={setSelectedYear}>
+                                            <SelectTrigger id="year-select"><SelectValue placeholder="Select Year" /></SelectTrigger>
+                                            <SelectContent>{yearOptions.map(year => (<SelectItem key={year} value={year}>{year}</SelectItem>))}</SelectContent>
+                                        </Select>
+                                    </div>
+                                </div>
+                            </TabsContent>
+                            <TabsContent value="custom" className="mt-4 space-y-4">
+                                <div>
+                                    <Label htmlFor="date-range">Date range</Label>
+                                    <Popover>
+                                        <PopoverTrigger asChild>
+                                        <Button id="date-range" variant={"outline"} className={cn("w-full justify-start text-left font-normal", !dateRange && "text-muted-foreground")}>
+                                            <CalendarIcon className="mr-2 h-4 w-4" />
+                                            {dateRange?.from ? (dateRange.to ? (<>{format(dateRange.from, "LLL dd, y")} - {format(dateRange.to, "LLL dd, y")}</>) : (format(dateRange.from, "LLL dd, y"))) : (<span>Pick a date range</span>)}
+                                        </Button>
+                                        </PopoverTrigger>
+                                        <PopoverContent className="w-auto p-0" align="start"><Calendar initialFocus mode="range" defaultMonth={dateRange?.from} selected={dateRange} onSelect={setDateRange} numberOfMonths={2} /></PopoverContent>
+                                    </Popover>
+                                </div>
+                            </TabsContent>
+                        </Tabs>
+
                         <div className="flex justify-end">
                              <Button onClick={handleViewRecords} disabled={isFetchingRecords || !selectedClassroomId} className="w-full sm:w-auto">{isFetchingRecords ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}View Records</Button>
                         </div>
@@ -953,7 +981,7 @@ export default function FacultyAttendancePage() {
 
                         {!isFetchingRecords && !isAnalyzing && reportRecords.length === 0 && (
                             <div className="text-center text-muted-foreground pt-6">
-                                <p>No records to display. Select a classroom, month, and year, then click "View Records".</p>
+                                <p>No records to display. Select a classroom and date range, then click "View Records".</p>
                             </div>
                         )}
                     </CardContent>
