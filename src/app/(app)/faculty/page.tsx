@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/auth-context'; // Optional: for extra checks or personalization
 import { useRouter } from 'next/navigation'; // Optional: for programmatic navigation
 import { useEffect } from 'react'; // Optional: for side effects like redirecting if not faculty
+import { UserSearch } from 'lucide-react';
 
 export default function FacultyDashboardPage() {
   const { user, loading } = useAuth();
@@ -38,7 +39,7 @@ export default function FacultyDashboardPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <p>This is your central hub for various faculty-specific tasks and information.</p>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
               <Card className="hover:shadow-md transition-shadow">
                 <CardHeader>
                     <CardTitle className="text-lg">Manage Classrooms</CardTitle>
@@ -47,6 +48,20 @@ export default function FacultyDashboardPage() {
                     <p className="text-sm text-muted-foreground mb-3">Create, view, and update your student groups.</p>
                     <Button asChild variant="outline">
                         <Link href="/faculty/classrooms">Go to Classrooms</Link>
+                    </Button>
+                </CardContent>
+              </Card>
+               <Card className="hover:shadow-md transition-shadow">
+                <CardHeader>
+                    <CardTitle className="text-lg">View Student Profiles</CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <p className="text-sm text-muted-foreground mb-3">Look up students and view their performance.</p>
+                    <Button asChild variant="outline">
+                        <Link href="/faculty/students">
+                            <UserSearch className="mr-2 h-4 w-4" />
+                            View Students
+                        </Link>
                     </Button>
                 </CardContent>
               </Card>

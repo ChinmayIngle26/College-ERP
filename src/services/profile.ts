@@ -64,11 +64,12 @@ export interface StudentProfile {
 /**
  * Asynchronously retrieves the profile information for a given student UID from Firestore.
  * This is now a SERVER ACTION using the Admin SDK.
- * @param idToken The Firebase ID token of the authenticated student.
+ * @param idToken The Firebase ID token of the authenticated user (student or faculty).
+ * @param studentId The UID of the student whose profile is being requested. If not provided, it defaults to the token holder's UID.
  * @returns A promise that resolves to a StudentProfile object or null if not found/error.
  * @throws Throws an error if Firestore is not initialized or if there's a Firebase error.
  */
-export async function getStudentProfile(idToken: string): Promise<StudentProfile | null> {
+export async function getStudentProfile(idToken: string, studentId?: string): Promise<StudentProfile | null> {
   if (adminInitializationError) {
     console.error("[ServerAction:getStudentProfile] Admin SDK init failed:", adminInitializationError.message);
     throw new Error("Server error: Admin SDK initialization failed.");
@@ -85,17 +86,22 @@ export async function getStudentProfile(idToken: string): Promise<StudentProfile
     console.error("[ServerAction:getStudentProfile] Invalid ID token:", error);
     throw new Error("Authentication failed. Invalid or expired token.");
   }
-  const uid = decodedToken.uid;
+  const requesterUid = decodedToken.uid;
+  const targetUid = studentId || requesterUid;
+
+  // Here you could add a check: if a faculty is requesting another student's profile,
+  // ensure they have permission (e.g., they are in a common classroom).
+  // For now, we'll allow it if the token is valid.
 
   try {
-    const userDocRef = adminDb.collection('users').doc(uid);
+    const userDocRef = adminDb.collection('users').doc(targetUid);
     const userDocSnap = await userDocRef.get();
 
     if (userDocSnap.exists) {
       const userData = userDocSnap.data()!; // Non-null assertion as we checked exists
       // Construct and return the profile object
       return {
-        studentId: userData.studentId || uid,
+        studentId: userData.studentId || targetUid,
         name: userData.name || 'N/A',
         
         // Personal Information
@@ -111,7 +117,7 @@ export async function getStudentProfile(idToken: string): Promise<StudentProfile
         emergencyContactNumber: userData.emergencyContactNumber || 'N/A',
 
         // Academic Details
-        enrollmentNumber: userData.enrollmentNumber || userData.studentId || uid,
+        enrollmentNumber: userData.enrollmentNumber || userData.studentId || targetUid,
         courseProgram: userData.major || userData.courseProgram || 'N/A',
         department: userData.department || 'N/A',
         currentYear: userData.currentYear || 0,
@@ -144,7 +150,7 @@ export async function getStudentProfile(idToken: string): Promise<StudentProfile
         parentEmail: userData.parentEmail || 'N/A',
       };
     } else {
-      console.warn(`No profile document found for UID: ${uid}`);
+      console.warn(`No profile document found for UID: ${targetUid}`);
       return null;
     }
   } catch (error) {

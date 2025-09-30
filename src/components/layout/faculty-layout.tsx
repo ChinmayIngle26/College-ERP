@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -15,6 +14,7 @@ import {
   ChevronsRight,
   Settings, 
   GraduationCap,
+  UserSearch,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -35,6 +35,7 @@ import { useIsMobile } from '@/hooks/use-is-mobile'; // Import useIsMobile
 const facultyNavigationItems = [
   { href: '/faculty', label: 'Dashboard', icon: Home },
   { href: '/faculty/classrooms', label: 'Manage Classrooms', icon: Users },
+  { href: '/faculty/students', label: 'Student Profiles', icon: UserSearch },
   { href: '/faculty/attendance', label: 'Update Attendance', icon: CheckSquare },
   { href: '/faculty/grades', label: 'Manage Grades', icon: GraduationCap },
   { href: '/', label: 'Student View', icon: Eye },
