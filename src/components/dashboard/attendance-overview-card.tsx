@@ -16,15 +16,19 @@ const processAttendanceData = (records: AttendanceRecord[]) => {
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
   records.forEach(record => {
-    const monthIndex = getMonth(parseISO(record.date));
-    if (!monthlyData[monthIndex]) {
-      monthlyData[monthIndex] = { name: monthNames[monthIndex], present: 0, absent: 0, total: 0 };
-    }
-    monthlyData[monthIndex].total++;
-    if (record.status === 'present') {
-      monthlyData[monthIndex].present++;
-    } else {
-       monthlyData[monthIndex].absent++;
+    try {
+        const monthIndex = getMonth(parseISO(record.date));
+        if (!monthlyData[monthIndex]) {
+          monthlyData[monthIndex] = { name: monthNames[monthIndex], present: 0, absent: 0, total: 0 };
+        }
+        monthlyData[monthIndex].total++;
+        if (record.status === 'present') {
+          monthlyData[monthIndex].present++;
+        } else {
+           monthlyData[monthIndex].absent++;
+        }
+    } catch (e) {
+        console.warn(`Could not parse date for attendance record: ${record.date}`, e);
     }
   });
 
@@ -43,7 +47,8 @@ const processAttendanceData = (records: AttendanceRecord[]) => {
 
 export function AttendanceOverviewCard({ attendanceRecords }: AttendanceOverviewCardProps) {
   const chartData = processAttendanceData(attendanceRecords);
-  const hasData = chartData.some(d => d.attendance > 0);
+  // Corrected check: Look for any records (present or absent), not just present ones.
+  const hasData = chartData.some(d => d.total > 0);
 
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow">
