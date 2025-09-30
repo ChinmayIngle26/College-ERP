@@ -14,7 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { CalendarIcon, CheckCircle, User, Users, BookOpen, Loader2, Search, Download, AlertTriangle, Lightbulb, Trash2 } from 'lucide-react';
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { format, isValid } from 'date-fns';
+import { format, isValid, startOfMonth, endOfMonth } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/context/auth-context';
@@ -51,6 +51,8 @@ const PIE_CHART_COLORS = {
     absent: 'hsl(var(--chart-4))',
 };
 
+const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
 
 export default function FacultyAttendancePage() {
     const { user, loading: authLoading } = useAuth();
@@ -76,8 +78,8 @@ export default function FacultyAttendancePage() {
     const [loadingPreviousAttendance, setLoadingPreviousAttendance] = useState(false);
 
     // State for Reports Tab
-    const [startDate, setStartDate] = useState<Date | undefined>();
-    const [endDate, setEndDate] = useState<Date | undefined>();
+    const [selectedMonth, setSelectedMonth] = useState<string>(String(new Date().getMonth()));
+    const [selectedYear, setSelectedYear] = useState<string>(String(new Date().getFullYear()));
     const [reportRecords, setReportRecords] = useState<LectureAttendanceRecord[]>([]);
     const [isFetchingRecords, setIsFetchingRecords] = useState(false);
     const [attendanceThreshold, setAttendanceThreshold] = useState<number>(75);
@@ -424,7 +426,7 @@ export default function FacultyAttendancePage() {
             await deleteLectureAttendance(idToken, selectedClassroomId, dateString);
             toast({
                 title: "Attendance Deleted",
-                description: `All attendance records for ${format(selectedDate, "PPP")} have been deleted.`,
+                description: `All attendance records for this classroom on ${format(selectedDate, "PPP")} have been deleted.`,
             });
             // Reset the form state
             fetchPreviousAttendance();
@@ -442,14 +444,15 @@ export default function FacultyAttendancePage() {
             toast({ title: "Authentication Error", description: "User not authenticated.", variant: "destructive" });
             return;
         }
-        if (!selectedClassroomId || !startDate || !endDate) {
-            toast({ title: "Missing Information", description: "Please select a classroom and a full date range.", variant: "destructive" });
+        if (!selectedClassroomId || !selectedMonth || !selectedYear) {
+            toast({ title: "Missing Information", description: "Please select a classroom, month, and year.", variant: "destructive" });
             return;
         }
-        if (endDate < startDate) {
-            toast({ title: "Invalid Date Range", description: "End date cannot be before the start date.", variant: "destructive" });
-            return;
-        }
+
+        const year = parseInt(selectedYear, 10);
+        const month = parseInt(selectedMonth, 10); // month is 0-indexed
+        const startDate = startOfMonth(new Date(year, month));
+        const endDate = endOfMonth(new Date(year, month));
 
         setIsFetchingRecords(true);
         setIsAnalyzing(true);
@@ -558,6 +561,15 @@ export default function FacultyAttendancePage() {
             setAttendanceThreshold(0); // Or some other default
         }
     };
+    
+    const yearOptions = useMemo(() => {
+        const currentYear = new Date().getFullYear();
+        const years = [];
+        for (let i = currentYear; i >= currentYear - 5; i--) {
+            years.push(String(i));
+        }
+        return years;
+    }, []);
 
 
     if (authLoading) {
@@ -724,7 +736,7 @@ export default function FacultyAttendancePage() {
                 <Card>
                     <CardHeader>
                         <CardTitle>View Attendance Reports</CardTitle>
-                        <CardDescription>Select a classroom and date range to view records and generate reports.</CardDescription>
+                        <CardDescription>Select a classroom, month, and year to view records and generate reports.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -737,16 +749,30 @@ export default function FacultyAttendancePage() {
                                     </Select>)}
                             </div>
                              <div>
-                                <Label htmlFor="startDate">Start Date</Label>
-                                <Popover><PopoverTrigger asChild><Button id="startDate" variant={"outline"} className={cn("w-full justify-start text-left font-normal",!startDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{startDate && isValid(startDate) ? format(startDate, "PPP") : <span>Pick start date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus /></PopoverContent></Popover>
+                                <Label htmlFor="month-select">Month</Label>
+                                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                                    <SelectTrigger id="month-select"><SelectValue placeholder="Select Month" /></SelectTrigger>
+                                    <SelectContent>
+                                        {monthNames.map((month, index) => (
+                                            <SelectItem key={month} value={String(index)}>{month}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                             <div>
-                                <Label htmlFor="endDate">End Date</Label>
-                                <Popover><PopoverTrigger asChild><Button id="endDate" variant={"outline"} className={cn("w-full justify-start text-left font-normal",!endDate && "text-muted-foreground")}><CalendarIcon className="mr-2 h-4 w-4" />{endDate && isValid(endDate) ? format(endDate, "PPP") : <span>Pick end date</span>}</Button></PopoverTrigger><PopoverContent className="w-auto p-0"><Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus /></PopoverContent></Popover>
+                                <Label htmlFor="year-select">Year</Label>
+                                <Select value={selectedYear} onValueChange={setSelectedYear}>
+                                    <SelectTrigger id="year-select"><SelectValue placeholder="Select Year" /></SelectTrigger>
+                                    <SelectContent>
+                                        {yearOptions.map(year => (
+                                            <SelectItem key={year} value={year}>{year}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
                             </div>
                         </div>
                         <div className="flex justify-end">
-                             <Button onClick={handleViewRecords} disabled={isFetchingRecords || !selectedClassroomId || !startDate || !endDate} className="w-full sm:w-auto">{isFetchingRecords ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}View Records</Button>
+                             <Button onClick={handleViewRecords} disabled={isFetchingRecords || !selectedClassroomId} className="w-full sm:w-auto">{isFetchingRecords ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Search className="mr-2 h-4 w-4"/>}View Records</Button>
                         </div>
                          {(isFetchingRecords || isAnalyzing) && (
                             <div className="flex items-center justify-center p-6"><Loader2 className="h-6 w-6 animate-spin text-primary" /> <span className="ml-2">{isFetchingRecords ? 'Fetching records...' : 'Analyzing data...'}</span></div>
@@ -927,7 +953,7 @@ export default function FacultyAttendancePage() {
 
                         {!isFetchingRecords && !isAnalyzing && reportRecords.length === 0 && (
                             <div className="text-center text-muted-foreground pt-6">
-                                <p>No records to display. Select a classroom and date range, then click "View Records".</p>
+                                <p>No records to display. Select a classroom, month, and year, then click "View Records".</p>
                             </div>
                         )}
                     </CardContent>
