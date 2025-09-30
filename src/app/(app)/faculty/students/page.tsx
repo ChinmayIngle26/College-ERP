@@ -155,7 +155,7 @@ export default function FacultyViewStudentsPage() {
                                     <TableRow 
                                         key={student.userId}
                                         className="cursor-pointer hover:bg-muted"
-                                        onClick={() => router.push(`/faculty/students/${student.userId}`)}
+                                        onClick={() => router.push(`/faculty/students/${student.userId}?classroomId=${selectedClassroomId}`)}
                                     >
                                         <TableCell>{student.studentIdNumber}</TableCell>
                                         <TableCell>{student.name}</TableCell>
