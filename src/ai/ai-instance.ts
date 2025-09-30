@@ -22,5 +22,6 @@ export const ai = genkit({
   // This ensures ai.generate has a model if the prompt doesn't specify one.
   // However, for `ai.definePrompt`, the model choice is often more contextual.
   // For the email generation prompt, gemini-1.5-flash should be good.
-  // model: 'googleai/gemini-1.5-flash-latest', // Using a specific gemini model
+  // Using a specific gemini model. This was the missing piece causing AI analysis to fail.
+  defaultModel: 'googleai/gemini-1.5-flash', 
 });
