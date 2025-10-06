@@ -4,7 +4,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react'; // Added useEffect and useState
+import { useEffect, useState } from 'react';
 import {
   Home,
   User,
@@ -16,7 +16,7 @@ import {
   LogOut,
   ChevronsLeft,
   ChevronsRight,
-  Network, // Added Network icon
+  Network,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/context/auth-context';
@@ -31,12 +31,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { getSystemSettings } from '@/services/system-settings'; 
+import { getSystemSettings } from '@/services/system-settings';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
 const navigationItems = [
   { href: '/dashboard', label: 'Home', icon: Home },
   { href: '/profile', label: 'My Profile', icon: User },
-  { href: '/classrooms', label: 'My Classrooms', icon: Network }, // New item
+  { href: '/classrooms', label: 'My Classrooms', icon: Network },
   { href: '/attendance', label: 'Attendance', icon: CheckSquare },
   { href: '/grades', label: 'Grades', icon: GraduationCap },
   { href: '/appointments', label: 'Appointments', icon: CalendarCheck },
@@ -61,6 +62,7 @@ export function Sidebar({ isCollapsed, toggleCollapse }: SidebarProps) {
   const { toast } = useToast();
   const [collegeName, setCollegeName] = useState('AISSMS Industrial Training Institute'); 
   const [appNameLoading, setAppNameLoading] = useState(true);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     const fetchAppName = async () => {
@@ -162,10 +164,8 @@ export function Sidebar({ isCollapsed, toggleCollapse }: SidebarProps) {
         </div>
         <nav className="space-y-2">
           {navigationItems.map((item) => {
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href) && item.href !== '/profile');
-             const finalIsActive = item.href === '/dashboard' ? pathname === '/dashboard' : isActive;
-
-
+            const isActive = pathname.startsWith(item.href) && (item.href === '/dashboard' ? pathname === '/dashboard' : true);
+            
             return (
               <Tooltip key={item.href}>
                 <TooltipTrigger asChild>
@@ -174,12 +174,12 @@ export function Sidebar({ isCollapsed, toggleCollapse }: SidebarProps) {
                     className={cn(
                       'flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                       isCollapsed ? "justify-center" : "",
-                      finalIsActive
+                      isActive
                         ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                         : 'text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground'
                     )}
                   >
-                    <item.icon className={cn('w-5 h-5 shrink-0', finalIsActive ? 'text-sidebar-accent-foreground' : 'text-sidebar-primary')} />
+                    <item.icon className={cn('w-5 h-5 shrink-0', isActive ? 'text-sidebar-accent-foreground' : 'text-sidebar-primary')} />
                     {!isCollapsed && <span>{item.label}</span>}
                   </Link>
                 </TooltipTrigger>
@@ -253,18 +253,20 @@ export function Sidebar({ isCollapsed, toggleCollapse }: SidebarProps) {
             )}
           </Tooltip>
         )}
-        <Button
-          variant="ghost"
-          onClick={toggleCollapse}
-          className={cn(
-            "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium justify-start text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-            isCollapsed ? "justify-center" : ""
-          )}
-          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isCollapsed ? <ChevronsRight className="w-5 h-5 text-sidebar-primary shrink-0" /> : <ChevronsLeft className="w-5 h-5 text-sidebar-primary shrink-0" />}
-          {!isCollapsed && <span>Collapse</span>}
-        </Button>
+        {!isMobile && (
+            <Button
+            variant="ghost"
+            onClick={toggleCollapse}
+            className={cn(
+                "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium justify-start text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                isCollapsed ? "justify-center" : ""
+            )}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+            {isCollapsed ? <ChevronsRight className="w-5 h-5 text-sidebar-primary shrink-0" /> : <ChevronsLeft className="w-5 h-5 text-sidebar-primary shrink-0" />}
+            {!isCollapsed && <span>Collapse</span>}
+            </Button>
+        )}
       </div>
     </aside>
     </TooltipProvider>

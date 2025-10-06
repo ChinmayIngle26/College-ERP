@@ -1,14 +1,14 @@
 
 "use client";
 
-import * as React from "react"
+import { useState, useEffect } from "react";
 
 const MOBILE_BREAKPOINT = 768; // Tailwind's `md` breakpoint
 
 export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined);
+  const [isMobile, setIsMobile] = useState<boolean | undefined>(undefined);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (typeof window === 'undefined') {
       return;
     }
@@ -20,11 +20,12 @@ export function useIsMobile() {
     };
 
     mql.addEventListener("change", onChange);
+    
     // Set initial state
     setIsMobile(mql.matches);
 
     return () => mql.removeEventListener("change", onChange);
   }, []);
 
-  return !!isMobile; // Ensure boolean return, handles initial undefined
+  return isMobile;
 }

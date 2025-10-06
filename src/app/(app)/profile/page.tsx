@@ -352,7 +352,7 @@ function ProfileDetailsLoader() {
             <h3 className="text-lg font-semibold text-foreground">{profile.name}</h3>
             <p className="text-sm text-muted-foreground break-all">{profile.email}</p>
           </div>
-          <div className="md:col-span-2 space-y-1">
+          <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1">
             <InfoItem label="Full Name" value={profile.name} fieldName="name" onEditRequest={openRequestModal} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.name} profileValue={profile.name}/>
             <InfoItem
                 label="Date of Birth"
@@ -404,32 +404,36 @@ function ProfileDetailsLoader() {
               )}
             />
             <InfoItem label="Email Address" value={profile.email} fieldName="email" onEditRequest={openRequestModal} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.email} profileValue={profile.email}/>
-            <InfoItem 
-                label="Permanent Address" 
-                value={profile.permanentAddress} 
-                fieldName="permanentAddress" 
-                isEditable={true} 
-                isEditMode={isEditMode}
-                handleInputChange={handleInputChange}
-                editableProfileValue={editableProfile.permanentAddress}
-                profileValue={profile.permanentAddress}
-                editModeRender={(currentValue, handleChange, name) => (
-                    <Textarea id={name as string} name={name as string} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="123 Main St, City, Country"/>
-                )}
-            />
-            <InfoItem 
-                label="Current Address" 
-                value={profile.currentAddress} 
-                fieldName="currentAddress" 
-                isEditable={true} 
-                isEditMode={isEditMode}
-                handleInputChange={handleInputChange}
-                editableProfileValue={editableProfile.currentAddress}
-                profileValue={profile.currentAddress}
-                editModeRender={(currentValue, handleChange, name) => (
-                    <Textarea id={name as string} name={name as string} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="Apt 4B, Complex, City"/>
-                )}
-            />
+            <div className="sm:col-span-2">
+                <InfoItem 
+                    label="Permanent Address" 
+                    value={profile.permanentAddress} 
+                    fieldName="permanentAddress" 
+                    isEditable={true} 
+                    isEditMode={isEditMode}
+                    handleInputChange={handleInputChange}
+                    editableProfileValue={editableProfile.permanentAddress}
+                    profileValue={profile.permanentAddress}
+                    editModeRender={(currentValue, handleChange, name) => (
+                        <Textarea id={name as string} name={name as string} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="123 Main St, City, Country"/>
+                    )}
+                />
+            </div>
+            <div className="sm:col-span-2">
+                <InfoItem 
+                    label="Current Address" 
+                    value={profile.currentAddress} 
+                    fieldName="currentAddress" 
+                    isEditable={true} 
+                    isEditMode={isEditMode}
+                    handleInputChange={handleInputChange}
+                    editableProfileValue={editableProfile.currentAddress}
+                    profileValue={profile.currentAddress}
+                    editModeRender={(currentValue, handleChange, name) => (
+                        <Textarea id={name as string} name={name as string} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="Apt 4B, Complex, City"/>
+                    )}
+                />
+            </div>
             <InfoItem label="Blood Group" value={profile.bloodGroup} fieldName="bloodGroup" isEditable={true} isEditMode={isEditMode} handleInputChange={handleInputChange} editableProfileValue={editableProfile.bloodGroup} profileValue={profile.bloodGroup}
               editModeRender={(currentValue, handleChange, name) => (
                 <Input id={name as string} name={name as string} className="mt-1" value={currentValue || ''} onChange={handleChange} placeholder="O+"/>

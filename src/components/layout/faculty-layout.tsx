@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -30,7 +31,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getSystemSettings } from '@/services/system-settings'; 
-import { useIsMobile } from '@/hooks/use-is-mobile'; // Import useIsMobile
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
 const facultyNavigationItems = [
   { href: '/faculty', label: 'Dashboard', icon: Home },
@@ -53,12 +54,12 @@ export function FacultyLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(isMobile); // Initialize based on isMobile
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(isMobile);
   const [collegeName, setCollegeName] = useState('AISSMS Industrial Training Institute'); 
   const [appNameLoading, setAppNameLoading] = useState(true);
 
   useEffect(() => {
-    if (isMobile === undefined) return; // Wait for isMobile to be determined
+    if (isMobile === undefined) return;
 
     if (isMobile) {
       setIsSidebarCollapsed(true);
@@ -68,7 +69,7 @@ export function FacultyLayout({ children }: { children: React.ReactNode }) {
         if (storedCollapsedState !== null) {
           setIsSidebarCollapsed(JSON.parse(storedCollapsedState));
         } else {
-          setIsSidebarCollapsed(false); // Default to expanded on desktop
+          setIsSidebarCollapsed(false);
         }
       }
     }
@@ -94,7 +95,7 @@ export function FacultyLayout({ children }: { children: React.ReactNode }) {
   const toggleSidebarCollapse = () => {
     setIsSidebarCollapsed(prevState => {
       const newState = !prevState;
-      if (typeof window !== 'undefined') {
+      if (typeof window !== 'undefined' && !isMobile) {
         localStorage.setItem('faculty-sidebar-collapsed', JSON.stringify(newState));
       }
       return newState;
@@ -193,7 +194,7 @@ export function FacultyLayout({ children }: { children: React.ReactNode }) {
           <nav className="space-y-2">
             {facultyNavigationItems.map((item) => {
               const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-               const finalIsActive = item.href === '/' ? pathname === '/' : isActive;
+               const finalIsActive = item.href === '/' ? pathname === '/dashboard' : isActive; // Treat '/' as student dashboard
 
               return (
                  <Tooltip key={item.href}>
@@ -281,18 +282,20 @@ export function FacultyLayout({ children }: { children: React.ReactNode }) {
                 )}
             </Tooltip>
            )}
-            <Button
-                variant="ghost"
-                onClick={toggleSidebarCollapse}
-                className={cn(
-                    "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium justify-start text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-                    isSidebarCollapsed ? "justify-center" : ""
-                )}
-                aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                >
-                {isSidebarCollapsed ? <ChevronsRight className="w-5 h-5 text-sidebar-primary shrink-0" /> : <ChevronsLeft className="w-5 h-5 text-sidebar-primary shrink-0" />}
-                {!isSidebarCollapsed && <span>Collapse</span>}
-            </Button>
+            {!isMobile && (
+                <Button
+                    variant="ghost"
+                    onClick={toggleSidebarCollapse}
+                    className={cn(
+                        "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium justify-start text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                        isSidebarCollapsed ? "justify-center" : ""
+                    )}
+                    aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    >
+                    {isSidebarCollapsed ? <ChevronsRight className="w-5 h-5 text-sidebar-primary shrink-0" /> : <ChevronsLeft className="w-5 h-5 text-sidebar-primary shrink-0" />}
+                    {!isSidebarCollapsed && <span>Collapse</span>}
+                </Button>
+            )}
         </div>
       </aside>
 

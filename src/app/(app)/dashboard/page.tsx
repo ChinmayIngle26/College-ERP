@@ -171,12 +171,12 @@ export default function DashboardPage() {
                 <Skeleton className="h-32 w-full" />
             </div>
             <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                <div className="space-y-6 lg:col-span-2">
+                <div className="space-y-6 lg:col-span-3 xl:col-span-2">
                     <Skeleton className="h-72 w-full" />
                     <Skeleton className="h-72 w-full" />
                 </div>
-                <div className="lg:col-span-1">
-                     <Skeleton className="h-[590px] w-full" /> 
+                <div className="lg:col-span-3 xl:col-span-1">
+                     <Skeleton className="h-full min-h-[590px] w-full" /> 
                 </div>
             </div>
         </div>
@@ -250,11 +250,11 @@ export default function DashboardPage() {
           />
         </div>
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="space-y-6 lg:col-span-2">
+          <div className="space-y-6 lg:col-span-3 xl:col-span-2">
             <AttendanceOverviewCard attendanceRecords={data.attendanceRecords} />
             <GradesChartCard grades={data.grades} analysis={data.gradeAnalysis} />
           </div>
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-3 xl:col-span-1">
             <AnnouncementsCard announcements={data.announcements} />
           </div>
         </div>

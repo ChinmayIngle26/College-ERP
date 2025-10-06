@@ -30,7 +30,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { getSystemSettings } from '@/services/system-settings'; 
-import { useIsMobile } from '@/hooks/use-is-mobile'; // Import useIsMobile
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
 const adminNavigationItems = [
   { href: '/dashboard', label: 'Student View', icon: LayoutDashboard }, 
@@ -52,12 +52,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { toast } = useToast();
   const isMobile = useIsMobile();
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(isMobile); // Initialize based on isMobile
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(isMobile);
   const [collegeName, setCollegeName] = useState('AISSMS Industrial Training Institute'); 
   const [appNameLoading, setAppNameLoading] = useState(true);
 
   useEffect(() => {
-    if (isMobile === undefined) return; // Wait for isMobile to be determined
+    if (isMobile === undefined) return;
 
     if (isMobile) {
       setIsSidebarCollapsed(true);
@@ -67,7 +67,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         if (storedCollapsedState !== null) {
           setIsSidebarCollapsed(JSON.parse(storedCollapsedState));
         } else {
-          setIsSidebarCollapsed(false); // Default to expanded on desktop if no localStorage
+          setIsSidebarCollapsed(false); 
         }
       }
     }
@@ -93,9 +93,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   const toggleSidebarCollapse = () => {
     setIsSidebarCollapsed(prevState => {
       const newState = !prevState;
-      if (typeof window !== 'undefined') {
-        // Only save to localStorage if not on mobile or if user explicitly toggles on mobile
-        // For simplicity, we'll save it always, mobile will just default to collapsed on load
+      if (typeof window !== 'undefined' && !isMobile) {
         localStorage.setItem('admin-sidebar-collapsed', JSON.stringify(newState));
       }
       return newState;
@@ -132,13 +130,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
   };
 
   if (loading || appNameLoading || isMobile === undefined) {
-    // Determine initial skeleton collapse state based on a quick check or default
     const initialSkeletonCollapse = (typeof window !== 'undefined' && window.innerWidth < 768) || false;
     return (
       <div className="flex h-screen">
         <aside className={cn(
             "bg-sidebar-background h-full p-6 flex flex-col justify-between shadow-lg border-r border-sidebar-border transition-all duration-300 ease-in-out",
-            initialSkeletonCollapse ? "w-20" : "w-64" // Use determined initial state
+            initialSkeletonCollapse ? "w-20" : "w-64"
           )}>
           <div>
             <div className={cn("flex items-center mb-10", initialSkeletonCollapse ? "justify-center" : "space-x-3")}>
@@ -284,18 +281,20 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 )}
             </Tooltip>
            )}
-            <Button
-                variant="ghost"
-                onClick={toggleSidebarCollapse}
-                className={cn(
-                    "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium justify-start text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-                    isSidebarCollapsed ? "justify-center" : ""
-                )}
-                aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                >
-                {isSidebarCollapsed ? <ChevronsRight className="w-5 h-5 text-sidebar-primary shrink-0" /> : <ChevronsLeft className="w-5 h-5 text-sidebar-primary shrink-0" />}
-                {!isSidebarCollapsed && <span>Collapse</span>}
-            </Button>
+            {!isMobile && (
+                <Button
+                    variant="ghost"
+                    onClick={toggleSidebarCollapse}
+                    className={cn(
+                        "w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium justify-start text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                        isSidebarCollapsed ? "justify-center" : ""
+                    )}
+                    aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                    >
+                    {isSidebarCollapsed ? <ChevronsRight className="w-5 h-5 text-sidebar-primary shrink-0" /> : <ChevronsLeft className="w-5 h-5 text-sidebar-primary shrink-0" />}
+                    {!isSidebarCollapsed && <span>Collapse</span>}
+                </Button>
+            )}
         </div>
       </aside>
 
