@@ -602,7 +602,7 @@ export default function FacultyAttendancePage() {
   return (
     <>
         <MainHeader />
-        <div className="p-6 space-y-6">
+        <div className="p-4 md:p-6 space-y-6">
             <h2 className="text-2xl font-bold tracking-tight md:text-3xl">Faculty Attendance</h2>
             
             <Tabs defaultValue="mark" className="w-full">
@@ -684,7 +684,7 @@ export default function FacultyAttendancePage() {
                                 </div>
                                 {isMobile ? (
                                     <div className="space-y-2 p-3">
-                                        {filteredStudentsToDisplay.map((student, index) => (
+                                        {filteredStudentsToDisplay.map((student) => (
                                             <div key={student.userId} className="flex items-center justify-between rounded-md border p-3">
                                                 <div>
                                                     <p className="font-medium">{student.name}</p>
@@ -828,7 +828,7 @@ export default function FacultyAttendancePage() {
                         {!isFetchingRecords && !isAnalyzing && reportRecords.length > 0 && (
                             <div className="space-y-6">
                                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                                    <Card className="lg:col-span-2">
+                                    <Card className="lg:col-span-3 xl:col-span-2">
                                         <CardHeader><CardTitle>AI Attendance Analysis</CardTitle></CardHeader>
                                         <CardContent>
                                             {analysisResult ? (
@@ -855,13 +855,13 @@ export default function FacultyAttendancePage() {
                                             )}
                                         </CardContent>
                                     </Card>
-                                    <Card>
+                                    <Card className="lg:col-span-3 xl:col-span-1">
                                         <CardHeader><CardTitle>Overall Attendance</CardTitle></CardHeader>
                                         <CardContent>
                                             <div className="h-60 w-full">
                                                 <ResponsiveContainer width="100%" height="100%">
                                                     <PieChart>
-                                                        <Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(props) => `${props.payload.name}: ${props.payload.percentage}%`}>
+                                                        <Pie data={pieChartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={isMobile ? 60 : 80} label={(props) => `${props.payload.name}: ${props.payload.percentage}%`}>
                                                             {pieChartData.map((entry, index) => (
                                                                 <Cell key={`cell-${index}`} fill={entry.name === 'Present' ? PIE_CHART_COLORS.present : PIE_CHART_COLORS.absent} />
                                                             ))}
@@ -891,7 +891,7 @@ export default function FacultyAttendancePage() {
                                     <CardContent>
                                         <div className="mb-4 space-y-2">
                                             <Label htmlFor="threshold">Attendance Threshold: <span className="font-bold text-primary">{attendanceThreshold}%</span></Label>
-                                            <div className="flex items-center gap-4">
+                                            <div className="flex flex-col sm:flex-row items-center gap-4">
                                                 <Slider
                                                     id="threshold"
                                                     min={0}
@@ -905,7 +905,7 @@ export default function FacultyAttendancePage() {
                                                     type="number" 
                                                     value={attendanceThreshold}
                                                     onChange={handleThresholdInputChange}
-                                                    className="w-20"
+                                                    className="w-full sm:w-20"
                                                     min="0" max="100"
                                                 />
                                             </div>
