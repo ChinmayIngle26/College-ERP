@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase/client';
 import { Loader2 } from 'lucide-react';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
 type UserRole = 'admin' | 'faculty' | 'student' | null;
 
@@ -26,6 +27,7 @@ export default function AppLayout({
   const router = useRouter();
   const pathname = usePathname(); // Get current pathname
   const [isStudentSidebarCollapsed, setIsStudentSidebarCollapsed] = useState(false);
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -97,31 +99,33 @@ export default function AppLayout({
     });
   };
 
-  if (loading || checkingRole) {
+  if (loading || checkingRole || isMobile === undefined) {
     return (
       <div className="flex h-screen">
-        <aside className={cn(
-            "bg-sidebar-background h-full p-6 flex flex-col justify-between shadow-lg border-r border-sidebar-border transition-all duration-300 ease-in-out",
-            isStudentSidebarCollapsed ? "w-20" : "w-64"
-          )}>
-           <div>
-             <div className="flex items-center space-x-3 mb-10">
-                <Skeleton className="h-10 w-10 rounded-md" />
-                {!isStudentSidebarCollapsed && (
-                  <div>
-                    <Skeleton className="h-4 w-20 mb-1" />
-                    <Skeleton className="h-3 w-28" />
-                  </div>
-                )}
+        {!isMobile && (
+          <aside className={cn(
+              "bg-sidebar-background h-full p-6 flex flex-col justify-between shadow-lg border-r border-sidebar-border transition-all duration-300 ease-in-out",
+              isStudentSidebarCollapsed ? "w-20" : "w-64"
+            )}>
+             <div>
+               <div className="flex items-center space-x-3 mb-10">
+                  <Skeleton className="h-10 w-10 rounded-md" />
+                  {!isStudentSidebarCollapsed && (
+                    <div>
+                      <Skeleton className="h-4 w-20 mb-1" />
+                      <Skeleton className="h-3 w-28" />
+                    </div>
+                  )}
+               </div>
+               <nav className="space-y-2">
+                  {[...Array(6)].map((_, i) => (
+                    <Skeleton key={i} className={cn("h-10 w-full rounded-md", isStudentSidebarCollapsed && "w-10 mx-auto")} />
+                  ))}
+               </nav>
              </div>
-             <nav className="space-y-2">
-                {[...Array(6)].map((_, i) => (
-                  <Skeleton key={i} className={cn("h-10 w-full rounded-md", isStudentSidebarCollapsed && "w-10 mx-auto")} />
-                ))}
-             </nav>
-           </div>
-           <Skeleton className={cn("h-10 w-full rounded-md", isStudentSidebarCollapsed && "w-10 mx-auto")} />
-        </aside>
+             <Skeleton className={cn("h-10 w-full rounded-md", isStudentSidebarCollapsed && "w-10 mx-auto")} />
+          </aside>
+        )}
         <main className="flex-1 p-6 overflow-auto">
            <Skeleton className="h-16 w-full mb-6" />
            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4 mb-6">
@@ -143,8 +147,6 @@ export default function AppLayout({
     );
   }
 
-  // This condition should ideally only be hit very briefly if the redirect is working.
-  // If stuck here, the router.push in useEffect might not be completing.
   if (!user && !loading && !checkingRole) {
     return (
       <div className="flex h-screen items-center justify-center bg-background text-foreground">
@@ -154,8 +156,6 @@ export default function AppLayout({
     );
   }
 
-
-  // Render layout based on role if user exists
   if (user) {
     if (userRole === 'admin') {
       return <AdminLayout>{children}</AdminLayout>;
@@ -163,10 +163,12 @@ export default function AppLayout({
     if (userRole === 'faculty') {
       return <FacultyLayout>{children}</FacultyLayout>;
     }
-    // Default to student layout if user exists and role is student or not yet determined but user object is present
+    
     return (
       <div className="flex h-screen bg-background">
-        <Sidebar isCollapsed={isStudentSidebarCollapsed} toggleCollapse={toggleStudentSidebarCollapse} />
+        {!isMobile && (
+          <Sidebar isCollapsed={isStudentSidebarCollapsed} toggleCollapse={toggleStudentSidebarCollapse} />
+        )}
         <main className="flex-1 overflow-auto">
           <div className="p-6">
               {children}
@@ -176,9 +178,6 @@ export default function AppLayout({
     );
   }
 
-  // Fallback: Should ideally not be reached if logic above is correct.
-  // This might show if user is null, but loading or checkingRole is somehow still true,
-  // or if router.push leads to a state where this component re-renders before navigation completes.
   return (
     <div className="flex h-screen items-center justify-center bg-background text-foreground">
         <Loader2 className="h-10 w-10 animate-spin text-primary" />

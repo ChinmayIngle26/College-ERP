@@ -53,9 +53,10 @@ function deleteCookie(name: string) {
 interface SidebarProps {
   isCollapsed: boolean;
   toggleCollapse: () => void;
+  onLinkClick?: () => void; // Optional callback for when a link is clicked
 }
 
-export function Sidebar({ isCollapsed, toggleCollapse }: SidebarProps) {
+export function Sidebar({ isCollapsed, toggleCollapse, onLinkClick }: SidebarProps) {
   const pathname = usePathname();
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -91,6 +92,7 @@ export function Sidebar({ isCollapsed, toggleCollapse }: SidebarProps) {
           title: 'Logged Out',
           description: 'You have been successfully logged out.',
         });
+        if (onLinkClick) onLinkClick();
         router.push('/signin');
       } catch (error) {
         console.error('Logout failed:', error);
@@ -171,6 +173,7 @@ export function Sidebar({ isCollapsed, toggleCollapse }: SidebarProps) {
                 <TooltipTrigger asChild>
                   <Link
                     href={item.href}
+                    onClick={onLinkClick}
                     className={cn(
                       'flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
                       isCollapsed ? "justify-center" : "",

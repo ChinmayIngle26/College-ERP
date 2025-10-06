@@ -20,7 +20,7 @@ export function MainHeader() {
   const [collegeName, setCollegeName] = useState('AISSMS Industrial Training Institute');
   const [appNameLoading, setAppNameLoading] = useState(true);
   const isMobile = useIsMobile();
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     const fetchAppName = async () => {
@@ -38,16 +38,12 @@ export function MainHeader() {
     };
     fetchAppName();
   }, []);
-  
-  const toggleSidebar = () => {
-    setIsSidebarCollapsed(!isSidebarCollapsed);
-  };
 
   return (
     <header className="sticky top-0 z-40 flex h-16 items-center justify-between gap-4 border-b bg-background px-4 sm:px-6">
       <div className="flex items-center gap-4">
-        {isMobile && (
-          <Sheet>
+        {isMobile ? (
+          <Sheet open={isSidebarOpen} onOpenChange={setIsSidebarOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon">
                 <Menu className="h-5 w-5" />
@@ -55,14 +51,14 @@ export function MainHeader() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 w-64">
-              {/* The actual sidebar component needs to be rendered here */}
-              <div className="h-full">
-                <Sidebar isCollapsed={false} toggleCollapse={() => {}} />
-              </div>
+              <Sidebar 
+                isCollapsed={false} 
+                toggleCollapse={() => {}} 
+                onLinkClick={() => setIsSidebarOpen(false)}
+              />
             </SheetContent>
           </Sheet>
-        )}
-        {!isMobile && (
+        ) : (
           <Image
             src="/college-logo.png"
             alt="College Logo"
