@@ -971,10 +971,10 @@ export default function FacultyAttendancePage() {
                                                                             {lecture.records.sort((a, b) => (a.studentName || '').localeCompare(b.studentName || '')).map((record: LectureAttendanceRecord) => (
                                                                                 <div key={record.id} className="flex justify-between items-center border-b py-2 text-sm">
                                                                                     <div>
-                                                                                        <p className="font-medium">{record.studentName}</p>
+                                                                                        <p className={cn("font-medium", record.status === 'present' ? 'text-green-600' : 'text-red-600')}>{record.studentName}</p>
                                                                                         <p className="text-xs text-muted-foreground">{record.studentIdNumber || 'N/A'}</p>
                                                                                     </div>
-                                                                                    <span className={cn('font-semibold', record.status === 'present' ? 'text-green-600' : 'text-red-600')}>{record.status.charAt(0).toUpperCase() + record.status.slice(1)}</span>
+                                                                                    <p className="text-xs text-muted-foreground">{record.batch ? `Batch: ${record.batch}` : ''}</p>
                                                                                 </div>
                                                                             ))}
                                                                         </div>
