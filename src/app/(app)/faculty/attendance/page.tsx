@@ -31,6 +31,7 @@ import { Slider } from '@/components/ui/slider';
 import { analyzeAttendance } from '@/ai/flows/analyze-attendance-flow';
 import type { AttendanceAnalysisOutput } from '@/types/attendance-analysis';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { useIsMobile } from '@/hooks/use-is-mobile';
 
 type StudentAttendanceStatus = {
     [studentId: string]: boolean; // true for present, false for absent
@@ -58,6 +59,7 @@ const monthNames = ["January", "February", "March", "April", "May", "June", "Jul
 export default function FacultyAttendancePage() {
     const { user, loading: authLoading } = useAuth();
     const { toast } = useToast();
+    const isMobile = useIsMobile();
 
     // Shared state
     const [classrooms, setClassrooms] = useState<Classroom[]>([]);
@@ -616,7 +618,7 @@ export default function FacultyAttendancePage() {
                         <CardDescription>Select a classroom and date to mark new attendance or edit a previous record.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                             <div>
                                 <Label htmlFor="classroom-mark">Classroom</Label>
                                 {loadingClassrooms ? <Skeleton className="h-10 w-full" /> : (
@@ -657,7 +659,7 @@ export default function FacultyAttendancePage() {
                 {selectedClassroomId && selectedDate && (
                     <Card className="mt-6">
                         <CardHeader className="bg-muted/50 p-4">
-                            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 text-sm">
                                 <div className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-primary" /><span className="font-semibold">Course:</span> {selectedClassroomDetails?.subject || 'N/A'}</div>
                                 <div className="flex items-center gap-2"><User className="h-5 w-5 text-primary" /><span className="font-semibold">Faculty:</span> {user?.displayName || 'N/A'}</div>
                                 <div className="flex items-center gap-2"><CalendarIcon className="h-5 w-5 text-primary" /><span className="font-semibold">Date:</span> {isValid(selectedDate) ? format(selectedDate, "PPP") : 'N/A'}</div>
@@ -671,8 +673,28 @@ export default function FacultyAttendancePage() {
                                 <>
                                 <div className="bg-muted/30 p-3 flex justify-between items-center text-sm font-medium">
                                     <div>Class Strength: <span className="text-primary">{filteredStudentsToDisplay.length}</span></div>
-                                    <div>Total Present: <span className="text-green-600">{totalPresentStudents}</span></div>
+                                    <div className="flex items-center gap-2">
+                                        <span>Present:</span>
+                                        <span className="text-green-600">{totalPresentStudents}</span>
+                                        <div className="flex items-center gap-1 ml-4">
+                                            <Checkbox id="selectAll" checked={selectAllChecked} onCheckedChange={handleSelectAllChange} aria-label="Select all students" />
+                                            <Label htmlFor="selectAll" className="cursor-pointer">All</Label>
+                                        </div>
+                                    </div>
                                 </div>
+                                {isMobile ? (
+                                    <div className="space-y-2 p-3">
+                                        {filteredStudentsToDisplay.map((student, index) => (
+                                            <div key={student.userId} className="flex items-center justify-between rounded-md border p-3">
+                                                <div>
+                                                    <p className="font-medium">{student.name}</p>
+                                                    <p className="text-xs text-muted-foreground">{student.studentIdNumber}</p>
+                                                </div>
+                                                <Checkbox id={`attendance-${student.userId}`} checked={attendanceStatus[student.userId] === true} onCheckedChange={(checked) => handleStatusChange(student.userId, checked as boolean)} aria-label={`Mark ${student.name} attendance`} className="h-5 w-5" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
                                 <div className="overflow-x-auto">
                                     <Table className="min-w-full">
                                         <TableHeader>
@@ -680,11 +702,7 @@ export default function FacultyAttendancePage() {
                                                 <TableHead className="w-[80px] px-3 py-2 text-center border">Sr. No.</TableHead>
                                                 <TableHead className="w-[150px] px-3 py-2 border">Roll No.</TableHead>
                                                 <TableHead className="min-w-[200px] px-3 py-2 border">Name of Student</TableHead>
-                                                <TableHead className="w-[120px] px-3 py-2 text-center border">
-                                                    <div className="flex items-center justify-center">
-                                                        <Checkbox id="selectAll" checked={selectAllChecked} onCheckedChange={handleSelectAllChange} aria-label="Select all students" />
-                                                    </div>
-                                                </TableHead>
+                                                <TableHead className="w-[120px] px-3 py-2 text-center border">Status</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
@@ -695,7 +713,7 @@ export default function FacultyAttendancePage() {
                                                     <TableCell className="px-3 py-2 border">{student.name}</TableCell>
                                                     <TableCell className="px-3 py-2 text-center border">
                                                         <div className="flex items-center justify-center">
-                                                            <Checkbox id={`attendance-${student.userId}`} checked={attendanceStatus[student.userId] === true} onCheckedChange={(checked) => handleStatusChange(student.userId, checked as boolean)} aria-label={`Mark ${student.name} attendance`} />
+                                                            <Checkbox id={`attendance-table-${student.userId}`} checked={attendanceStatus[student.userId] === true} onCheckedChange={(checked) => handleStatusChange(student.userId, checked as boolean)} aria-label={`Mark ${student.name} attendance`} />
                                                         </div>
                                                     </TableCell>
                                                 </TableRow>
@@ -703,11 +721,12 @@ export default function FacultyAttendancePage() {
                                         </TableBody>
                                     </Table>
                                 </div>
-                                <div className="p-4 flex items-center justify-end gap-2 border-t">
+                                )}
+                                <div className="p-4 flex flex-col sm:flex-row items-center justify-end gap-2 border-t">
                                      {isEditing && (
                                         <AlertDialog>
                                             <AlertDialogTrigger asChild>
-                                                <Button variant="destructive" disabled={isDeleting}>
+                                                <Button variant="destructive" disabled={isDeleting} className="w-full sm:w-auto">
                                                     <Trash2 className="mr-2 h-4 w-4" /> Delete Attendance
                                                 </Button>
                                             </AlertDialogTrigger>
@@ -715,7 +734,7 @@ export default function FacultyAttendancePage() {
                                                 <AlertDialogHeader>
                                                     <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                                     <AlertDialogDescription>
-                                                        This will permanently delete all attendance records for this classroom on <strong>{format(selectedDate, "PPP")}</strong>. This action cannot be undone.
+                                                        This will permanently delete all attendance records for this classroom on <strong>{selectedDate && isValid(selectedDate) ? format(selectedDate, "PPP") : 'the selected date'}</strong>. This action cannot be undone.
                                                     </AlertDialogDescription>
                                                 </AlertDialogHeader>
                                                 <AlertDialogFooter>
@@ -728,7 +747,7 @@ export default function FacultyAttendancePage() {
                                             </AlertDialogContent>
                                         </AlertDialog>
                                     )}
-                                    <Button onClick={handleSubmitAttendance} disabled={isSubmitting || !allStudentsHaveDefinedStatus || !lectureSubjectTopic.trim()}>
+                                    <Button onClick={handleSubmitAttendance} disabled={isSubmitting || !allStudentsHaveDefinedStatus || !lectureSubjectTopic.trim()} className="w-full sm:w-auto">
                                         {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                                         {isEditing ? 'Update Attendance' : 'Submit Attendance'}
                                     </Button>
@@ -749,8 +768,8 @@ export default function FacultyAttendancePage() {
                         <CardDescription>Select a classroom and a report type to view records and generate reports.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                            <div className="md:col-span-3">
+                         <div className="grid grid-cols-1 gap-4 md:grid-cols-1">
+                            <div className="md:col-span-1">
                                 <Label htmlFor="classroom-report">Classroom</Label>
                                 {loadingClassrooms ? <Skeleton className="h-10 w-full" /> : (
                                     <Select value={selectedClassroomId} onValueChange={setSelectedClassroomId} disabled={classrooms.length === 0}>
@@ -892,28 +911,30 @@ export default function FacultyAttendancePage() {
                                             </div>
                                         </div>
                                         {lowAttendanceStudents.length > 0 ? (
-                                        <Table>
-                                            <TableHeader>
-                                                <TableRow>
-                                                    <TableHead>Student ID</TableHead>
-                                                    <TableHead>Name</TableHead>
-                                                    <TableHead>Total Lectures</TableHead>
-                                                    <TableHead>Attended</TableHead>
-                                                    <TableHead className="text-right">Attendance %</TableHead>
-                                                </TableRow>
-                                            </TableHeader>
-                                            <TableBody>
-                                                {lowAttendanceStudents.map(student => (
-                                                    <TableRow key={student.studentId}>
-                                                        <TableCell>{student.studentIdNumber}</TableCell>
-                                                        <TableCell>{student.name}</TableCell>
-                                                        <TableCell>{student.totalLectures}</TableCell>
-                                                        <TableCell>{student.attendedLectures}</TableCell>
-                                                        <TableCell className="text-right font-bold">{student.percentage.toFixed(2)}%</TableCell>
+                                        <div className="overflow-x-auto">
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Student ID</TableHead>
+                                                        <TableHead>Name</TableHead>
+                                                        <TableHead>Total Lectures</TableHead>
+                                                        <TableHead>Attended</TableHead>
+                                                        <TableHead className="text-right">Attendance %</TableHead>
                                                     </TableRow>
-                                                ))}
-                                            </TableBody>
-                                        </Table>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {lowAttendanceStudents.map(student => (
+                                                        <TableRow key={student.studentId}>
+                                                            <TableCell>{student.studentIdNumber}</TableCell>
+                                                            <TableCell>{student.name}</TableCell>
+                                                            <TableCell>{student.totalLectures}</TableCell>
+                                                            <TableCell>{student.attendedLectures}</TableCell>
+                                                            <TableCell className="text-right font-bold">{student.percentage.toFixed(2)}%</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        </div>
                                         ) : (
                                             <p className="text-center text-muted-foreground py-4">No students are below the {attendanceThreshold}% threshold.</p>
                                         )}
