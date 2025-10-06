@@ -910,34 +910,34 @@ export default function FacultyAttendancePage() {
                                                 />
                                             </div>
                                         </div>
-                                        {lowAttendanceStudents.length > 0 ? (
                                         <div className="overflow-x-auto">
-                                            <Table>
-                                                <TableHeader>
-                                                    <TableRow>
-                                                        <TableHead>Student ID</TableHead>
-                                                        <TableHead>Name</TableHead>
-                                                        <TableHead>Total Lectures</TableHead>
-                                                        <TableHead>Attended</TableHead>
-                                                        <TableHead className="text-right">Attendance %</TableHead>
-                                                    </TableRow>
-                                                </TableHeader>
-                                                <TableBody>
-                                                    {lowAttendanceStudents.map(student => (
-                                                        <TableRow key={student.studentId}>
-                                                            <TableCell>{student.studentIdNumber}</TableCell>
-                                                            <TableCell>{student.name}</TableCell>
-                                                            <TableCell>{student.totalLectures}</TableCell>
-                                                            <TableCell>{student.attendedLectures}</TableCell>
-                                                            <TableCell className="text-right font-bold">{student.percentage.toFixed(2)}%</TableCell>
+                                            {lowAttendanceStudents.length > 0 ? (
+                                                <Table>
+                                                    <TableHeader>
+                                                        <TableRow>
+                                                            <TableHead>Student ID</TableHead>
+                                                            <TableHead>Name</TableHead>
+                                                            <TableHead>Total Lectures</TableHead>
+                                                            <TableHead>Attended</TableHead>
+                                                            <TableHead className="text-right">Attendance %</TableHead>
                                                         </TableRow>
-                                                    ))}
-                                                </TableBody>
-                                            </Table>
+                                                    </TableHeader>
+                                                    <TableBody>
+                                                        {lowAttendanceStudents.map(student => (
+                                                            <TableRow key={student.studentId}>
+                                                                <TableCell>{student.studentIdNumber}</TableCell>
+                                                                <TableCell>{student.name}</TableCell>
+                                                                <TableCell>{student.totalLectures}</TableCell>
+                                                                <TableCell>{student.attendedLectures}</TableCell>
+                                                                <TableCell className="text-right font-bold">{student.percentage.toFixed(2)}%</TableCell>
+                                                            </TableRow>
+                                                        ))}
+                                                    </TableBody>
+                                                </Table>
+                                            ) : (
+                                                <p className="text-center text-muted-foreground py-4">No students are below the {attendanceThreshold}% threshold.</p>
+                                            )}
                                         </div>
-                                        ) : (
-                                            <p className="text-center text-muted-foreground py-4">No students are below the {attendanceThreshold}% threshold.</p>
-                                        )}
                                     </CardContent>
                                 </Card>
                             
