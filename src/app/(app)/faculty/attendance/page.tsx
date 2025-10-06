@@ -953,9 +953,9 @@ export default function FacultyAttendancePage() {
                                             {groupedReportRecords.map((dateGroup, index) => (
                                                 <AccordionItem value={`date-${index}`} key={dateGroup.date} className="border rounded-lg px-4 bg-muted/20">
                                                     <AccordionTrigger className="hover:no-underline">
-                                                        <div className="text-left">
+                                                        <div className="flex w-full items-center justify-between text-left">
                                                             <span className="font-semibold text-primary">{format(new Date(dateGroup.date), 'PPP')}</span>
-                                                            <span className="text-sm text-muted-foreground ml-4">{dateGroup.lectures.length} lecture(s) recorded</span>
+                                                            <span className="text-sm text-muted-foreground ml-4 shrink-0">{dateGroup.lectures.length} lecture(s)</span>
                                                         </div>
                                                     </AccordionTrigger>
                                                     <AccordionContent>
@@ -966,6 +966,19 @@ export default function FacultyAttendancePage() {
                                                                         <h4 className="font-semibold">{lecture.lectureName}</h4>
                                                                         <p className="text-sm text-muted-foreground">Marked by: {lecture.facultyName}</p>
                                                                     </div>
+                                                                    {isMobile ? (
+                                                                        <div className="space-y-2">
+                                                                            {lecture.records.sort((a, b) => (a.studentName || '').localeCompare(b.studentName || '')).map((record: LectureAttendanceRecord) => (
+                                                                                <div key={record.id} className="flex justify-between items-center border-b py-2 text-sm">
+                                                                                    <div>
+                                                                                        <p className="font-medium">{record.studentName}</p>
+                                                                                        <p className="text-xs text-muted-foreground">{record.studentIdNumber || 'N/A'}</p>
+                                                                                    </div>
+                                                                                    <span className={cn('font-semibold', record.status === 'present' ? 'text-green-600' : 'text-red-600')}>{record.status.charAt(0).toUpperCase() + record.status.slice(1)}</span>
+                                                                                </div>
+                                                                            ))}
+                                                                        </div>
+                                                                    ) : (
                                                                     <div className="overflow-x-auto border rounded-md">
                                                                         <Table>
                                                                             <TableHeader>
@@ -988,6 +1001,7 @@ export default function FacultyAttendancePage() {
                                                                             </TableBody>
                                                                         </Table>
                                                                     </div>
+                                                                    )}
                                                                 </div>
                                                             ))}
                                                         </div>
